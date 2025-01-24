@@ -27,9 +27,9 @@ print("# =======================================================================
 def load_data(target_path, collect_path):
     target = np.load(target_path)["arr_0"]
     collect = np.load(collect_path)["arr_0"]
-    Y_all = target_diff(target)
-    X_all = collect_diff_and_skip(collect)
-    return Y_all, X_all
+    X_all = target_diff(target)
+    Y_all = collect_diff_and_skip(collect)
+    return X_all, Y_all
 
 
 def target_diff(target):
@@ -48,6 +48,14 @@ def collect_diff_and_skip(collect):
     # print("Collect signal Shape:", collect.shape)
 
 
-Y_all, X_all = load_data(exp_target, exp_collected)
-print("Y_all Shape:", Y_all.shape)
-print("diff_collect Shape:", X_all.shape)
+def load_mnist(target_path, collect_path):
+    X_all, Y_all = load_data(target_path, collect_path)
+    Y_mnist = Y_all[:1000, :]
+    X_mnist = X_all[:1000, :]
+    return X_mnist, Y_mnist
+
+
+# Y_all, X_all = load_data(exp_target, exp_collected)
+X_mnist, Y_mnist = load_mnist(target_path=exp_target, collect_path=exp_collected)
+print("Y_mnist Shape:", Y_mnist.shape)
+print("X_mnist Shape:", X_mnist.shape)
