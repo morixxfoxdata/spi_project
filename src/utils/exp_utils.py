@@ -1,18 +1,16 @@
-import os
-
 import numpy as np
 
 # ==========================================================================
-exp_data_dir = "data/experiment"
+# exp_data_dir = "data/experiment"
 
-# print(os.path.exists(exp_data_dir))
-exp_collected = os.path.join(
-    exp_data_dir,
-    "collect/Mnist+Rand_pix28x28_image(1000+1000)x2_sig2500_4wave_newPD.npz",
-)
-exp_target = os.path.join(
-    exp_data_dir, "target/Mnist+Rand_pix28x28_image(1000+1000)x2.npz"
-)
+# # print(os.path.exists(exp_data_dir))
+# exp_collected = os.path.join(
+#     exp_data_dir,
+#     "collect/Mnist+Rand_pix28x28_image(1000+1000)x2_sig2500_4wave_newPD.npz",
+# )
+# exp_target = os.path.join(
+#     exp_data_dir, "target/Mnist+Rand_pix28x28_image(1000+1000)x2.npz"
+# )
 # print(os.path.exists(exp_collected))
 # print(os.path.exists(exp_target))
 # print("# ==========================================================================")
@@ -56,6 +54,6 @@ def load_mnist(target_path, collect_path):
 
 
 # Y_all, X_all = load_data(exp_target, exp_collected)
-X_mnist, Y_mnist = load_mnist(target_path=exp_target, collect_path=exp_collected)
+# X_mnist, Y_mnist = load_mnist(target_path=exp_target, collect_path=exp_collected)
 # print("Y_mnist Shape:", Y_mnist.shape)
 # print("X_mnist Shape:", X_mnist.shape)
