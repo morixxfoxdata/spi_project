@@ -162,9 +162,49 @@ class MultiscaleSpeckleNet(nn.Module):
         return activated_out
 
 
+class Conv1DModel(nn.Module):
+    def __init__(self, name="Conv1dNet"):
+        super(Conv1DModel, self).__init__()
+        self.model_name = name if name else self.__class__.__name__
+        self.feature_extractor = nn.Sequential(
+            # Conv1d(in_channels, out_channels, kernel_size, ...)
+            nn.Conv1d(in_channels=1, out_channels=16, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool1d(kernel_size=2),  # 出力形状: (batch_size, 16, 250)
+            nn.Conv1d(in_channels=16, out_channels=32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool1d(kernel_size=2),  # 出力形状: (batch_size, 32, 125)
+        )
+
+        # Flatten後に線形層で (batch_size, 4000) -> (batch_size, 64) に変換
+        self.classifier = nn.Sequential(
+            nn.Linear(in_features=32 * 125, out_features=64),
+            nn.Tanh(),  # 最終活性化関数を Tanh に設定
+        )
+
+    def forward(self, x):
+        """
+        x の形状: (batch_size, 1, 500)
+        出力の形状: (batch_size, 1, 64)
+        """
+        # 畳み込み + プーリングで特徴抽出
+        # Conv1d ではチャネル数（out_channels）方向の次元が増加する
+        x = self.feature_extractor(x)  # 例: (batch_size, 32, 125)
+
+        # Flatten: (batch_size, 32, 125) -> (batch_size, 32*125)
+        x = x.view(x.size(0), -1)  # 例: (batch_size, 4000)
+
+        # 全結合層を通して (batch_size, 64) を得る
+        x = self.classifier(x)  # 例: (batch_size, 64)
+
+        # 形状を (batch_size, 1, 64) に変換
+        x = x.unsqueeze(1)
+        return x
+
+
 if __name__ == "__main__":
-    x = torch.randn(1, 1, 500)
+    x = torch.randn(1, 1, 10000)
     print(x.shape)
-    # model = UNet(dropout=0.1)
-    model = MultiscaleSpeckleNet(outdim=64)
+    model = UNet(dropout=0.1)
+    # model = Conv1DModel()
     print(model(x).shape)

@@ -6,8 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 # from models.fcmodel import FCModel
-# from models.skip import skip
-from models.unet import MultiscaleSpeckleNet
+from models.skip import skip
 from utils.exp_utils import (
     image_display,
     load_mnist,
@@ -18,7 +17,7 @@ from utils.exp_utils import (
 
 # ==========================================================================
 exp_data_dir = "data/experiment"
-pixel = 8
+pixel = 28
 # print(os.path.exists(exp_data_dir))
 if pixel == 28:
     exp_collected = os.path.join(
@@ -92,7 +91,7 @@ loss_total = []
 reconstructed_total = []
 num_images = 10
 learning_rate = 0.0001
-num_epochs = 10000
+num_epochs = 8000
 S_0_tensor = S_0_tensor.to(device)
 
 print("S max, S min:", S_0_tensor.max(), S_0_tensor.min())
@@ -103,7 +102,9 @@ for i in range(num_images):
     # model = FCModel(
     #     input_size=500, hidden_size=250, output_size=64, name="DefaultFC"
     # ).to(device)
-    model = MultiscaleSpeckleNet(outdim=64).to(device)
+    # model = MultiscaleSpeckleNet(outdim=64).to(device)
+    # model = Conv1DModel().to(device)
+    model = skip().to(device)
     # print(model.model_name)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     criterion = nn.MSELoss()
@@ -139,7 +140,7 @@ for i in range(num_images):
         model=model.model_name,
         epochs=num_epochs,
         lr=learning_rate,
-        size=8,
+        size=pixel,
         num=i,
     )
     reconstructed_total.append(reconstucted_target.cpu().numpy())

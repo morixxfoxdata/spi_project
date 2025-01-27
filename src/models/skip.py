@@ -7,8 +7,8 @@ from .common import Concat, act, bn, conv
 def skip(
     num_input_channels=1,
     num_output_channels=1,
-    num_channels_down=[16, 32, 64, 128, 128],
-    num_channels_up=[16, 32, 64, 128, 128],
+    num_channels_down=[16, 16, 16, 16, 16],
+    num_channels_up=[16, 16, 16, 16, 16],
     num_channels_skip=[4, 4, 4, 4, 4],
     filter_size_down=3,
     filter_size_up=3,
@@ -144,14 +144,14 @@ def skip(
 
     model.add(conv(num_channels_up[0], num_output_channels, 1, bias=need_bias, pad=pad))
     if need_sigmoid:
-        model.add(nn.Sequential(nn.Linear(500, 64)))
+        model.add(nn.Sequential(nn.Linear(10000, 784)))
         model.add(nn.Tanh())
 
     return model
 
 
 if __name__ == "__main__":
-    x = torch.randn(1, 1, 500)
+    x = torch.randn(1, 1, 10000)
     print(x.shape)
     model = skip()
     print(model(x).shape)  # (1, 1, 64)
