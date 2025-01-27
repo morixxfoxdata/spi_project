@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
-from common import Concat, act, bn, conv
+
+from .common import Concat, act, bn, conv
 
 
 def skip(
@@ -48,7 +49,7 @@ def skip(
 
     model = nn.Sequential()
     model_tmp = model
-
+    model.model_name = "skip"
     input_depth = num_input_channels
     for i in range(len(num_channels_down)):
         deeper = nn.Sequential()

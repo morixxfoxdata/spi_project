@@ -139,7 +139,7 @@ def speckle_pred_8(target_path, collect_path, pixel=8, alpha=1.0):
     return predicted_speckle
 
 
-def image_display(j, xx, yy, model, size=28, num=1):
+def image_display(j, xx, yy, model, epochs, lr, size=28, num=1):
     # MSEとSSIMを計算
     mse_val = mean_squared_error(xx, yy)
     ssim_val = ssim_score(xx, yy)
@@ -174,7 +174,7 @@ def image_display(j, xx, yy, model, size=28, num=1):
         ax2.axis("off")
 
     # 図を保存
-    save_file = os.path.join(save_dir, f"img_{num}.png")
+    save_file = os.path.join(save_dir, f"img_{num}_iter{epochs}_lr{lr}.png")
     plt.savefig(save_file)
     plt.close(fig)
 

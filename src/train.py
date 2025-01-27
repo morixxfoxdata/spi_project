@@ -5,7 +5,9 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from models.fcmodel import FCModel
+# from models.fcmodel import FCModel
+# from models.skip import skip
+from models.unet import MultiscaleSpeckleNet
 from utils.exp_utils import (
     image_display,
     load_mnist,
@@ -89,7 +91,7 @@ print(os.path.exists("results/pix8"))
 loss_total = []
 reconstructed_total = []
 num_images = 10
-learning_rate = 0.00005
+learning_rate = 0.0001
 num_epochs = 10000
 S_0_tensor = S_0_tensor.to(device)
 
@@ -98,9 +100,11 @@ print("Y_mnist max, min:", Y_mnist_tensor.max(), Y_mnist_tensor.min())
 
 for i in range(num_images):
     # initialize model and params
-    model = FCModel(
-        input_size=500, hidden_size=250, output_size=64, name="DefaultFC"
-    ).to(device)
+    # model = FCModel(
+    #     input_size=500, hidden_size=250, output_size=64, name="DefaultFC"
+    # ).to(device)
+    model = MultiscaleSpeckleNet(outdim=64).to(device)
+    # print(model.model_name)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     criterion = nn.MSELoss()
     y_i = Y_mnist_tensor[i].unsqueeze(0).unsqueeze(0)  # (1, 10000)
@@ -120,7 +124,7 @@ for i in range(num_images):
         loss = criterion(Y_dash, y_i.squeeze(0))
         loss.backward()
         optimizer.step()
-        if (epoch + 1) % 1000 == 0:
+        if (epoch + 1) % 100 == 0:
             print(
                 f"Image {i}, Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.14f}"
             )
@@ -133,6 +137,8 @@ for i in range(num_images):
         X_mnist[i, :],
         reconstucted_target.cpu().numpy(),
         model=model.model_name,
+        epochs=num_epochs,
+        lr=learning_rate,
         size=8,
         num=i,
     )
@@ -144,7 +150,8 @@ for i in range(num_images):
 # print("min, max rec_img:", reconstructed_total.max(), reconstructed_total.min())
 # mse_val = mean_squared_error(X_mnist[:num_images, :], reconstructed_total)
 np.savez(
-    f"results/pix{pixel}_npz/{model.model_name}_rec_img_0_9.npz", reconstructed_total
+    f"results/pix{pixel}_npz/{model.model_name}_img_09_iter{num_epochs}_lr{learning_rate}.npz",
+    reconstructed_total,
 )
 # print(mse_val)
 # print(len(reconstructed_total))
