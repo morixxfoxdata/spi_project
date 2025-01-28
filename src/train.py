@@ -17,6 +17,8 @@ from utils.exp_utils import (
 )
 
 # ==========================================================================
+# DATA _ PATH
+# ==========================================================================
 exp_data_dir = "../data/experiment"
 save_dir = "../results/"
 pixel = 28
@@ -39,8 +41,17 @@ elif pixel == 8:
     )
 
 # ==========================================================================
-region_indices = 0
-# Y_mnist Shape: (10, 10000)
+# SELECT WAVE_LENGTH
+# region_indices=0： 0から2500点を利用
+# region_indices=[0, 1]: 0から5000点を利用
+# region_indices=2：5000から7500点を利用
+# ==========================================================================
+region_indices = 1
+num_images = 10
+learning_rate = 0.0001
+num_epochs = 10000
+# ==========================================================================
+# Y_mnist Shape: (10, 2500)
 # X_mnist Shape: (10, 784)
 X_mnist, Y_mnist = load_mnist(
     target_path=exp_target,
@@ -48,7 +59,6 @@ X_mnist, Y_mnist = load_mnist(
     pixel=pixel,
     region_indices=region_indices,
 )
-
 if pixel == 8:
     S_0 = speckle_pred_8(target_path=exp_target, collect_path=exp_collected)
 elif pixel == 28:
@@ -90,7 +100,7 @@ else:
 print("Using device:", device)
 
 # save_dir Exists
-print(os.path.exists("../results/pix28"))
+# print(os.path.exists("../results/pix28"))
 
 ######################################################
 # Training function
@@ -98,9 +108,6 @@ print(os.path.exists("../results/pix28"))
 
 loss_total = []
 reconstructed_total = []
-num_images = 10
-learning_rate = 0.0001
-num_epochs = 10000
 S_0_tensor = S_0_tensor.to(device)
 
 print("S max, S min:", S_0_tensor.max(), S_0_tensor.min())
@@ -109,7 +116,7 @@ print("Y_mnist max, min:", Y_mnist_tensor.max(), Y_mnist_tensor.min())
 for i in range(num_images):
     # initialize model and params
     model = FCModel(
-        input_size=2500, hidden_size=1024, output_size=784, name="DefaultFC_wave0"
+        input_size=2500, hidden_size=1024, output_size=784, name="DefaultFC_wave1"
     ).to(device)
     # model = UNet1D().to(device)
     # model = MultiscaleSpeckleNet(outdim=64).to(device)
@@ -118,7 +125,7 @@ for i in range(num_images):
     # print(model.model_name)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     criterion = nn.MSELoss()
-    y_i = Y_mnist_tensor[i].unsqueeze(0).unsqueeze(0)  # (1, 10000)
+    y_i = Y_mnist_tensor[i].unsqueeze(0).unsqueeze(0)  # (1, 2500)
     y_i = y_i.to(device)
     print("y_i shape:", y_i.shape)
     # y_i = standardize(y=y_i)
@@ -129,7 +136,7 @@ for i in range(num_images):
         # output shape: (1, 784)
         output = model(y_i).squeeze(0)
 
-        # Y_dash(1, 10000) = output(1, 784) * S_0_tensor(784, 10000)
+        # Y_dash(1, 2500) = output(1, 784) * S_0_tensor(784, 2500)
         # print(output.shape, S_0_tensor.shape)
         Y_dash = torch.mm(output, S_0_tensor)
         loss = criterion(Y_dash, y_i.squeeze(0))
