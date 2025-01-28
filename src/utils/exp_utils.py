@@ -59,8 +59,8 @@ def collect_diff_and_skip(collect):
 def load_mnist(target_path, collect_path, pixel):
     X_all, Y_all = load_data(target_path, collect_path)
     if pixel == 28:
-        Y_mnist = Y_all[:1000, :]
-        X_mnist = X_all[:1000, :]
+        Y_mnist = Y_all[990:1000, :]
+        X_mnist = X_all[990:1000, :]
     elif pixel == 8:
         Y_mnist = Y_all[64:74, :]
         X_mnist = X_all[64:74, :]
@@ -149,7 +149,7 @@ def image_display(j, xx, yy, model, epochs, lr, size=28, num=1):
     print("SSIM=", ssim_val)
 
     # 保存先のディレクトリを決定
-    save_dir = os.path.join("results", f"pix{size}", str(model))
+    save_dir = os.path.join("../results", f"pix{size}", str(model))
     if not os.path.exists(save_dir):  # 存在しなければ作る
         os.makedirs(save_dir)
 
@@ -176,7 +176,8 @@ def image_display(j, xx, yy, model, epochs, lr, size=28, num=1):
     # 図を保存
     save_file = os.path.join(save_dir, f"img_{num}_iter{epochs}_lr{lr}.png")
     plt.savefig(save_file)
-    plt.close(fig)
+    print(f"saved! {save_file}")
+    # plt.close(fig)
 
 
 def ssim_score(img1, img2):

@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from models.unet_ad import UNet1D
+from models.fcmodel import FCModel
 
 # from models.skip import skip
 from utils.exp_utils import (
@@ -17,8 +17,9 @@ from utils.exp_utils import (
 )
 
 # ==========================================================================
-exp_data_dir = "data/experiment"
-pixel = 8
+exp_data_dir = "../data/experiment"
+save_dir = "../results/"
+pixel = 28
 # print(os.path.exists(exp_data_dir))
 if pixel == 28:
     exp_collected = os.path.join(
@@ -82,7 +83,7 @@ else:
 print("Using device:", device)
 
 # save_dir Exists
-print(os.path.exists("results/pix8"))
+print(os.path.exists("../results/pix28"))
 
 ######################################################
 # Training function
@@ -91,8 +92,8 @@ print(os.path.exists("results/pix8"))
 loss_total = []
 reconstructed_total = []
 num_images = 10
-learning_rate = 0.00001
-num_epochs = 3000
+learning_rate = 0.0001
+num_epochs = 10000
 S_0_tensor = S_0_tensor.to(device)
 
 print("S max, S min:", S_0_tensor.max(), S_0_tensor.min())
@@ -100,10 +101,10 @@ print("Y_mnist max, min:", Y_mnist_tensor.max(), Y_mnist_tensor.min())
 
 for i in range(num_images):
     # initialize model and params
-    # model = FCModel(
-    #     input_size=10000, hidden_size=1024, output_size=784, name="DefaultFC"
-    # ).to(device)
-    model = UNet1D().to(device)
+    model = FCModel(
+        input_size=10000, hidden_size=1024, output_size=784, name="DefaultFC"
+    ).to(device)
+    # model = UNet1D().to(device)
     # model = MultiscaleSpeckleNet(outdim=64).to(device)
     # model = Conv1DModel().to(device)
     # model = skip().to(device)
@@ -153,7 +154,7 @@ for i in range(num_images):
 # print("min, max rec_img:", reconstructed_total.max(), reconstructed_total.min())
 # mse_val = mean_squared_error(X_mnist[:num_images, :], reconstructed_total)
 np.savez(
-    f"results/pix{pixel}_npz/{model.model_name}_img_09_iter{num_epochs}_lr{learning_rate}.npz",
+    f"{save_dir}pix{pixel}_npz/{model.model_name}_img_09_iter{num_epochs}_lr{learning_rate}.npz",
     reconstructed_total,
 )
 # print(mse_val)
