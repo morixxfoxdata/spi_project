@@ -30,13 +30,16 @@ from sklearn.model_selection import train_test_split
 
 
 # ==========================================================================
-def load_data(target_path, collect_path):
+# LOADING TOOLS
+# ==========================================================================
+def load_data(target_path, collect_path, region_indices):
     target = np.load(target_path)["arr_0"]
     collect = np.load(collect_path)["arr_0"]
     # print("target shape:", target.shape)
     # print("collect shape:", collect.shape)
     X_all = target_diff(target)
     Y_all = collect_diff_and_skip(collect)
+    Y_all = wavelength_selection(Y_all, region_indices=region_indices)
     return X_all, Y_all
 
 
@@ -56,8 +59,8 @@ def collect_diff_and_skip(collect):
     # print("Collect signal Shape:", collect.shape)
 
 
-def load_mnist(target_path, collect_path, pixel):
-    X_all, Y_all = load_data(target_path, collect_path)
+def load_mnist(target_path, collect_path, pixel, region_indices):
+    X_all, Y_all = load_data(target_path, collect_path, region_indices=region_indices)
     if pixel == 28:
         Y_mnist = Y_all[990:1000, :]
         X_mnist = X_all[990:1000, :]
@@ -74,8 +77,8 @@ def load_hadamard(target_path, collect_path, pixel):
     return X_hadamard, Y_hadamard
 
 
-def load_random(target_path, collect_path, pixel):
-    X_all, Y_all = load_data(target_path, collect_path)
+def load_random(target_path, collect_path, pixel, region_indices):
+    X_all, Y_all = load_data(target_path, collect_path, region_indices=region_indices)
     if pixel == 28:
         Y_rand = Y_all[:1000, :]
         X_rand = X_all[:1000, :]
@@ -83,6 +86,32 @@ def load_random(target_path, collect_path, pixel):
         Y_rand = Y_all[74:574, :]
         X_rand = X_all[74:574, :]
     return X_rand, Y_rand
+
+
+def wavelength_selection(data, region_indices):
+    block_width = 2500
+    # region_indicesが単一のintの場合はリストに変換して扱う
+    if isinstance(region_indices, int):
+        region_indices = [region_indices]
+    # インデックスの範囲チェック
+    for idx in region_indices:
+        if not (0 <= idx <= 3):
+            raise ValueError("region_index は0〜3の範囲で指定してください。")
+
+    # 指定された各ブロックを取得して結合
+    sub_blocks = []
+    for idx in region_indices:
+        start_col = idx * block_width
+        end_col = start_col + block_width
+        sub_blocks.append(data[:, start_col:end_col])
+
+    # 列方向(axis=1)に結合
+    return np.concatenate(sub_blocks, axis=1)
+
+
+# ==========================================================================
+# UTILS
+# ==========================================================================
 
 
 def np_to_torch(img_np):
@@ -104,9 +133,17 @@ def standardize(y):
     return y_std
 
 
-def speckle_pred(target_path, collect_path, pixel=28, alpha=1.0):
+# ==========================================================================
+# SPECKLE PREDICTION
+# ==========================================================================
+
+
+def speckle_pred(target_path, collect_path, region_indices, pixel=28, alpha=1.0):
     X_rand, Y_rand = load_random(
-        target_path=target_path, collect_path=collect_path, pixel=pixel
+        target_path=target_path,
+        collect_path=collect_path,
+        pixel=pixel,
+        region_indices=region_indices,
     )
     X_train, X_test, Y_train, Y_test = train_test_split(
         X_rand, Y_rand, test_size=0.2, random_state=42
@@ -139,6 +176,9 @@ def speckle_pred_8(target_path, collect_path, pixel=8, alpha=1.0):
     return predicted_speckle
 
 
+# ==========================================================================
+# IMAGE PLOT and SAVE
+# ==========================================================================
 def image_display(j, xx, yy, model, epochs, lr, size=28, num=1):
     # MSEとSSIMを計算
     mse_val = mean_squared_error(xx, yy)
@@ -180,6 +220,9 @@ def image_display(j, xx, yy, model, epochs, lr, size=28, num=1):
     # plt.close(fig)
 
 
+# ==========================================================================
+# OTHERS
+# ==========================================================================
 def ssim_score(img1, img2):
     score = ssim(img1, img2, data_range=img1.max() - img1.min())
     return score

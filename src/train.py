@@ -39,18 +39,25 @@ elif pixel == 8:
     )
 
 # ==========================================================================
-
-# Y_mnist Shape: (1000, 10000)
-# X_mnist Shape: (1000, 784)
+region_indices = 0
+# Y_mnist Shape: (10, 10000)
+# X_mnist Shape: (10, 784)
 X_mnist, Y_mnist = load_mnist(
-    target_path=exp_target, collect_path=exp_collected, pixel=pixel
+    target_path=exp_target,
+    collect_path=exp_collected,
+    pixel=pixel,
+    region_indices=region_indices,
 )
 
 if pixel == 8:
     S_0 = speckle_pred_8(target_path=exp_target, collect_path=exp_collected)
 elif pixel == 28:
     S_0 = speckle_pred(
-        target_path=exp_target, collect_path=exp_collected, pixel=pixel, alpha=1.0
+        target_path=exp_target,
+        collect_path=exp_collected,
+        region_indices=region_indices,
+        pixel=pixel,
+        alpha=1.0,
     )
 print("S_0 shape:", S_0.shape)
 # X_rand, Y_rand = load_random(target_path=exp_target, collect_path=exp_collected)
@@ -102,7 +109,7 @@ print("Y_mnist max, min:", Y_mnist_tensor.max(), Y_mnist_tensor.min())
 for i in range(num_images):
     # initialize model and params
     model = FCModel(
-        input_size=10000, hidden_size=1024, output_size=784, name="DefaultFC"
+        input_size=2500, hidden_size=1024, output_size=784, name="DefaultFC_wave0"
     ).to(device)
     # model = UNet1D().to(device)
     # model = MultiscaleSpeckleNet(outdim=64).to(device)
