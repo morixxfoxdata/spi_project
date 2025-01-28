@@ -8,7 +8,7 @@ class FCModel(nn.Module):
         self.model_name = name if name else self.__class__.__name__
         self.fc = nn.Sequential(
             nn.Linear(input_size, hidden_size),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.Linear(hidden_size, output_size),
         )
         self.activation = nn.Tanh()
