@@ -26,7 +26,7 @@ else:
 exp_data_dir = "../data/experiment"
 save_dir = "../results/"
 os.makedirs(save_dir, exist_ok=True)  # 保存先ディレクトリを作成
-
+print(os.path.exists(save_dir))
 num_images = 10
 
 if pixel == 8:
@@ -68,8 +68,8 @@ def objective(trial):
     # WandBでトライアルごとにセッションを開始
     wandb.init(project="Conv1d_8px", name=f"trial_{trial.number}")
 
-    num_epochs = trial.suggest_int("num_epochs", 3000, 30000)
-    learning_rate = trial.suggest_float("learning_rate", 1e-6, 1e-3, log=True)
+    num_epochs = trial.suggest_int("num_epochs", 13000, 15000)
+    learning_rate = trial.suggest_float("learning_rate", 7e-4, 9e-4, log=True)
 
     model = MODEL
     S_0 = speckle_pred(
@@ -140,7 +140,7 @@ def objective(trial):
 
 # Optunaの実験開始
 study = optuna.create_study(direction="minimize")
-study.optimize(objective, n_trials=15)
+study.optimize(objective, n_trials=3)
 
 # ベストトライアル結果を保存
 if best_reconstructed_total is not None:
