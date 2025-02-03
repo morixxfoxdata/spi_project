@@ -129,8 +129,8 @@ class UNet1D(nn.Module):
         if need_sigmoid:
             self.final = nn.Sequential(
                 self.final,
-                nn.AdaptiveAvgPool1d(500),
-                nn.Linear(500, 64),
+                nn.AdaptiveAvgPool1d(2048),
+                nn.Linear(2048, 784),
                 nn.Tanh(),
             )
 

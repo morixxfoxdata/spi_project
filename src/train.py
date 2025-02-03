@@ -5,15 +5,13 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from models.fcmodel import FCModel
-
 # from models.skip import skip
+from models.unet_ad import UNet1D
 from utils.exp_utils import (
     image_display,
     load_mnist,
     np_to_torch,
     speckle_pred,
-    speckle_pred_8,
 )
 
 # ==========================================================================
@@ -52,10 +50,10 @@ elif pixel == 8:
 # region_indices=[0, 1]: 0から5000点を利用
 # region_indices=2：5000から7500点を利用
 # ==========================================================================
-region_indices = 1
+region_indices = [0, 1, 2, 3]
 num_images = 10
-learning_rate = 0.0001
-num_epochs = 10000
+learning_rate = 0.00001
+num_epochs = 3000
 # ==========================================================================
 # Y_mnist Shape: (10, 2500)
 # X_mnist Shape: (10, 784)
@@ -65,28 +63,26 @@ X_mnist, Y_mnist = load_mnist(
     pixel=pixel,
     region_indices=region_indices,
 )
-if pixel == 8:
-    S_0 = speckle_pred_8(target_path=exp_target, collect_path=exp_collected)
-elif pixel == 28:
-    S_0 = speckle_pred(
-        target_path=exp_target,
-        collect_path=exp_collected,
-        region_indices=region_indices,
-        pixel=pixel,
-        alpha=1.0,
-    )
+# if pixel == 8:
+#     S_0 = speckle_pred_8(
+#         target_path=exp_target,
+#         collect_path=exp_collected,
+#         region_indices=region_indices,
+#         pixel=8,
+#     )
+
+S_0 = speckle_pred(
+    target_path=exp_target,
+    collect_path=exp_collected,
+    region_indices=region_indices,
+    pixel=pixel,
+    alpha=1.0,
+)
 print("S_0 shape:", S_0.shape)
-# X_rand, Y_rand = load_random(target_path=exp_target, collect_path=exp_collected)
-# print("X_rand max, min:", X_rand.max(), X_rand.min())
-# inv_X Shape: (784, 1000)
-# inv_X = np.linalg.pinv(X_rand, rcond=1e-14)
-# print("inv_X maxmin:", inv_X.max(), inv_X.min())
-# S_0 Shape: (784, 10000)
-# S_0 = np.matmul(inv_X, Y_rand)
+
 
 S_0_tensor = np_to_torch(S_0).float()
-# S_0_tensor_std = standardize(S_0_tensor)
-# (1000, 784)
+
 X_mnist_tensor = np_to_torch(X_mnist).float()
 
 # (1000, 10000)
@@ -121,14 +117,10 @@ print("Y_mnist max, min:", Y_mnist_tensor.max(), Y_mnist_tensor.min())
 
 for i in range(num_images):
     # initialize model and params
-    model = FCModel(
-        input_size=2500, hidden_size=1024, output_size=784, name="DefaultFC_wave1"
-    ).to(device)
-    # model = UNet1D().to(device)
-    # model = MultiscaleSpeckleNet(outdim=64).to(device)
-    # model = Conv1DModel().to(device)
-    # model = skip().to(device)
-    # print(model.model_name)
+    # model = FCModel(input_size=10000, hidden_size=1024, output_size=784, name="CV1").to(
+    #     device
+    # )
+    model = UNet1D(upsample_mode="nearest", name="CV1").to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     criterion = nn.MSELoss()
     y_i = Y_mnist_tensor[i].unsqueeze(0).unsqueeze(0)  # (1, 2500)
@@ -142,8 +134,6 @@ for i in range(num_images):
         # output shape: (1, 784)
         output = model(y_i).squeeze(0)
 
-        # Y_dash(1, 2500) = output(1, 784) * S_0_tensor(784, 2500)
-        # print(output.shape, S_0_tensor.shape)
         Y_dash = torch.mm(output, S_0_tensor)
         loss = criterion(Y_dash, y_i.squeeze(0))
         loss.backward()
@@ -169,13 +159,7 @@ for i in range(num_images):
     reconstructed_total.append(reconstucted_target.cpu().numpy())
 
 
-# reconstructed_total = np.vstack(reconstructed_total)
-# print(reconstructed_total.shape)
-# print("min, max rec_img:", reconstructed_total.max(), reconstructed_total.min())
-# mse_val = mean_squared_error(X_mnist[:num_images, :], reconstructed_total)
 np.savez(
     f"{save_dir}pix{pixel}_npz/{model.model_name}_img_09_iter{num_epochs}_lr{learning_rate}.npz",
     reconstructed_total,
 )
-# print(mse_val)
-# print(len(reconstructed_total))
