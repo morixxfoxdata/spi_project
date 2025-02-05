@@ -1,6 +1,7 @@
 import os
 
 import matplotlib.pyplot as plt
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -20,7 +21,7 @@ from utils.exp_utils import (
 # PIXELS
 # ==========================================================================
 pixel = 28
-num = 3
+num = 1
 
 # ==========================================================================
 # DATA _ PATH
@@ -47,9 +48,9 @@ elif pixel == 8:
     )
 region_indices = [0, 1, 2, 3]
 # num_images = 10
-learning_rate = 0.001
-num_epochs = 1000
-TV_strength = 2e-6
+learning_rate = 0.005
+num_epochs = 10000
+TV_strength = 7e-8
 X_mnist, Y_mnist = load_mnist(
     target_path=exp_target,
     collect_path=exp_collected,
@@ -61,7 +62,7 @@ S_0 = speckle_pred(
     collect_path=exp_collected,
     region_indices=region_indices,
     pixel=pixel,
-    alpha=1.0,
+    alpha=20,
 )
 print("S_0 shape:", S_0.shape)
 
@@ -71,10 +72,10 @@ num_pixels = 784  # 1枚の画像のピクセル数（例：28×28）
 num_patterns = 10000  # 照明パターン枚数
 
 S_0_tensor = np_to_torch(S_0).float()
-
+# (10, 784)
 X_mnist_tensor = np_to_torch(X_mnist).float()
 
-# (1000, 10000)
+# (10, 10000)
 Y_mnist_tensor = np_to_torch(Y_mnist).float()
 
 dgi_path = os.path.join(exp_data_dir, f"pix28_{num}_dgi.npz")
@@ -92,46 +93,32 @@ print("Using device:", device)
 # S_0_tensor = S_0_tensor.to(device)
 
 
-R = torch.sum(S_0_tensor, dim=0)  # R[i] = sum(P_i)
-avg_Y = torch.mean(Y_mnist_tensor[:10, :], dim=1, keepdim=True)
-avg_R = torch.mean(R)
-weight = Y_mnist_tensor[:10, :] - (avg_Y / avg_R) * R
-I_rec = torch.matmul(weight, S_0_tensor.T) / num_patterns
+# R = torch.sum(S_0_tensor, dim=0)  # R[i] = sum(P_i)
+# avg_Y = torch.mean(Y_mnist_tensor, dim=1, keepdim=True)
+# avg_R = torch.mean(R)
+# weight = Y_mnist_tensor - (avg_Y / avg_R) * R
+# I_rec = torch.matmul(weight, S_0_tensor.T) / num_patterns
 
 
-fig, axes = plt.subplots(2, 5, figsize=(15, 6))
-for i in range(5):
-    # MNIST画像は通常28×28に変形して表示
-    original_img = X_mnist_tensor[i].reshape(28, 28).detach().cpu().numpy()
-    reconstructed_img = I_rec[i].reshape(28, 28).detach().cpu().numpy()
-
-    axes[0, i].imshow(original_img, cmap="gray")
-    axes[0, i].set_title(f"Original {i}")
-    axes[0, i].axis("off")
-
-    axes[1, i].imshow(reconstructed_img, cmap="gray")
-    axes[1, i].set_title(f"Reconstructed {i}")
-    axes[1, i].axis("off")
-
-plt.tight_layout()
 # plt.show()
 S_0_tensor = S_0_tensor.to(device)
 
-model = GIDC28(kernel_size=3, name="GIDC_3_tanh_tv_Adam").to(device)
+model = GIDC28(kernel_size=5, name="GIDC_7e8").to(device)
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 criterion = nn.MSELoss()
 
-y_ = Y_mnist_tensor[num].unsqueeze(0).unsqueeze(0).to(device)
+y_ = Y_mnist_tensor[num, :].unsqueeze(0).unsqueeze(0).to(device)
 print(X_mnist.max())
-# print(dgi_path)
-# dgi = np.load(dgi_path)["arr_0"]
-# print(dgi.shape)
-# dgi_tensor = np_to_torch(dgi).unsqueeze(0).unsqueeze(0).to(device)
-# print(dgi_tensor.shape)
-I_rec = I_rec[num].reshape((28, 28)).unsqueeze(0).unsqueeze(0).to(device)
+print(dgi_path)
+dgi = np.load(dgi_path)["arr_0"]
+print(dgi.shape)
+dgi_tensor = np_to_torch(dgi).unsqueeze(0).unsqueeze(0).to(device)
+print(dgi_tensor.shape)
+I_rec = dgi_tensor.reshape((28, 28)).unsqueeze(0).unsqueeze(0).to(device)
 print(I_rec.shape)
-model.train()
+
 for epoch in range(num_epochs):
+    model.train()
     optimizer.zero_grad()
     output = model(I_rec)
     # print(output.shape)
@@ -145,17 +132,18 @@ for epoch in range(num_epochs):
         print(
             f"Image {num}, Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.14f}"
         )
-model.eval()
-with torch.no_grad():
-    reconstucted_target = model(I_rec).squeeze(0).squeeze(0).reshape(784)
-    print(reconstucted_target.shape)
-image_display(
-    1,
-    X_mnist[num, :],
-    reconstucted_target.cpu().numpy(),
-    model=model.model_name,
-    epochs=num_epochs,
-    lr=learning_rate,
-    size=pixel,
-    num=num,
-)
+        model.eval()
+        with torch.no_grad():
+            reconstucted_target = model(I_rec).squeeze(0).squeeze(0).reshape(784)
+            print(reconstucted_target.shape)
+        image_display(
+            1,
+            X_mnist[num, :],
+            reconstucted_target.cpu().numpy(),
+            model=model.model_name,
+            epochs=epoch + 1,
+            lr=learning_rate,
+            size=pixel,
+            num=num,
+        )
+        plt.close()
