@@ -3,6 +3,7 @@ import os
 import numpy as np
 import torch
 from exp_utils import load_mnist, np_to_torch, speckle_pred
+from matplotlib import pyplot as plt
 
 pixel = 28
 
@@ -59,6 +60,7 @@ print("Y:", Y_mnist_tensor.shape)
 # ====================================
 # パラメータ設定
 # ====================================
+num = 9
 N = S_0_tensor.shape[1]  # 測定回数（照明パターン数）→ 10000
 # ====================================
 # 1. バケット信号の計算
@@ -108,7 +110,22 @@ I_rec = torch.matmul(weight, S_0_tensor.T) / N  # 再構成画像のサイズは
 # 5. 結果の可視化（例として最初の画像を表示）
 # ====================================
 # MNIST は通常 28×28 の画像なので、再構成画像も 28×28 に変形して表示します。
-original_img = X_mnist_tensor[0].reshape(28, 28).detach().cpu().numpy()
-reconstructed_img = I_rec[0].reshape(28, 28).detach().cpu().numpy()
 
-np.savez(f"{save_dir}pix{pixel}_dgi.npz", reconstructed_img)
+original_img = X_mnist_tensor[num].reshape(28, 28).detach().cpu().numpy()
+reconstructed_img = I_rec[num].reshape(28, 28).detach().cpu().numpy()
+
+np.savez(f"{exp_data_dir}/pix{pixel}_{num}_dgi.npz", reconstructed_img)
+plt.figure(figsize=(8, 4))
+
+plt.subplot(1, 2, 1)
+plt.imshow(original_img, cmap="gray")
+plt.title("Original MNIST Image")
+plt.axis("off")
+
+plt.subplot(1, 2, 2)
+plt.imshow(reconstructed_img, cmap="gray")
+plt.title("Reconstructed Image (DGI)")
+plt.axis("off")
+
+plt.tight_layout()
+plt.show()
