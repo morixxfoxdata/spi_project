@@ -200,7 +200,7 @@ def image_display(j, xx, yy, model, epochs, lr, size=28, num=1):
     print("SSIM=", ssim_val)
 
     # 保存先のディレクトリを決定
-    save_dir = os.path.join("../results", f"pix{size}", str(model))
+    save_dir = os.path.join("results", f"pix{size}", str(model))
     if not os.path.exists(save_dir):  # 存在しなければ作る
         os.makedirs(save_dir)
 
