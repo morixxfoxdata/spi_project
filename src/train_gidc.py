@@ -93,14 +93,14 @@ print("Using device:", device)
 # S_0_tensor = S_0_tensor.to(device)
 
 
-# R = torch.sum(S_0_tensor, dim=0)  # R[i] = sum(P_i)
-# avg_Y = torch.mean(Y_mnist_tensor, dim=1, keepdim=True)
-# avg_R = torch.mean(R)
-# weight = Y_mnist_tensor - (avg_Y / avg_R) * R
-# I_rec = torch.matmul(weight, S_0_tensor.T) / num_patterns
+R = torch.sum(S_0_tensor, dim=0)  # R[i] = sum(P_i)
+avg_Y = torch.mean(Y_mnist_tensor, dim=1, keepdim=True)
+avg_R = torch.mean(R)
+weight = Y_mnist_tensor - (avg_Y / avg_R) * R
+I_rec = torch.matmul(weight, S_0_tensor.T) / num_patterns
 
 
-# plt.show()
+plt.show()
 S_0_tensor = S_0_tensor.to(device)
 
 model = GIDC28(kernel_size=5, name="GIDC_7e8").to(device)
