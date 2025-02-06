@@ -9,7 +9,13 @@ from sklearn.metrics import mean_squared_error
 
 import wandb
 from models.unet_ad import UNet1D
-from utils.exp_utils import image_display, load_mnist, np_to_torch, speckle_pred
+from utils.exp_utils import (
+    image_display,
+    load_mnist,
+    np_to_torch,
+    speckle_pred,
+    ssim_score,
+)
 
 pixel = 28
 # CUDAが使えるかどうかの判定
@@ -65,7 +71,7 @@ def objective(trial):
     global best_reconstructed_total, best_trial_number  # ベストトライアル用のグローバル変数
 
     # WandBでトライアルごとにセッションを開始
-    wandb.init(project="UNet1D_28px", name=f"trial_{trial.number}")
+    wandb.init(project="UNet1D_28px_v2", name=f"trial_{trial.number}")
 
     num_epochs = trial.suggest_int("num_epochs", 3000, 30000)
     learning_rate = trial.suggest_float("learning_rate", 1e-6, 1e-3, log=True)
@@ -114,9 +120,9 @@ def objective(trial):
 
     reconstructed_total = np.vstack(reconstructed_total)
     mse_val = mean_squared_error(X_mnist, reconstructed_total)
-
+    ssim_val = 1 - ssim_score(X_mnist, reconstructed_total)
     # ベストトライアルを更新
-    if trial.number == 0 or mse_val < trial.study.best_value:
+    if trial.number == 0 or ssim_val < trial.study.best_value:
         best_reconstructed_total = reconstructed_total  # 最良の結果を保存
         best_trial_number = trial.number  # 最良トライアル番号を記録
 
@@ -125,6 +131,7 @@ def objective(trial):
         {
             "trial_number": trial.number,
             "mse": mse_val,
+            "ssim": 1 - ssim_val,
             "reconstructed_images": [
                 wandb.Image(img.reshape((pixel, -1))) for img in reconstructed_total
             ],
@@ -134,7 +141,7 @@ def objective(trial):
     # WandBセッション終了
     wandb.finish()
 
-    return mse_val
+    return ssim_val
 
 
 # Optunaの実験開始
