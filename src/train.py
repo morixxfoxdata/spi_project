@@ -6,7 +6,8 @@ import torch.nn as nn
 import torch.optim as optim
 
 # from models.skip import skip
-from models.unet_ad import UNet1D
+# from models.unet_ad import UNet1D
+from models.fcmodel import FCModel
 from utils.exp_utils import (
     image_display,
     load_mnist,
@@ -19,7 +20,7 @@ from utils.exp_utils import (
 # ==========================================================================
 pixel = 28
 
-
+ALPHA = 1
 # ==========================================================================
 # DATA _ PATH
 # ==========================================================================
@@ -52,8 +53,8 @@ elif pixel == 8:
 # ==========================================================================
 region_indices = [0, 1, 2, 3]
 num_images = 10
-learning_rate = 0.00001
-num_epochs = 3000
+learning_rate = 1e-5
+num_epochs = 2000
 # ==========================================================================
 # Y_mnist Shape: (10, 2500)
 # X_mnist Shape: (10, 784)
@@ -76,7 +77,7 @@ S_0 = speckle_pred(
     collect_path=exp_collected,
     region_indices=region_indices,
     pixel=pixel,
-    alpha=1.0,
+    alpha=ALPHA,
 )
 print("S_0 shape:", S_0.shape)
 
@@ -117,10 +118,10 @@ print("Y_mnist max, min:", Y_mnist_tensor.max(), Y_mnist_tensor.min())
 
 for i in range(num_images):
     # initialize model and params
-    # model = FCModel(input_size=10000, hidden_size=1024, output_size=784, name="CV1").to(
-    #     device
-    # )
-    model = UNet1D(upsample_mode="nearest", name="CV1").to(device)
+    model = FCModel(
+        input_size=10000, hidden_size=4096, output_size=784, name="FC_default_4096"
+    ).to(device)
+    # model = UNet1D(name="CV1_conv").to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     criterion = nn.MSELoss()
     y_i = Y_mnist_tensor[i].unsqueeze(0).unsqueeze(0)  # (1, 2500)
@@ -155,6 +156,7 @@ for i in range(num_images):
         lr=learning_rate,
         size=pixel,
         num=i,
+        alpha=ALPHA,
     )
     reconstructed_total.append(reconstucted_target.cpu().numpy())
 

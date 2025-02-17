@@ -65,8 +65,8 @@ def load_mnist(target_path, collect_path, pixel, region_indices):
         target_path, collect_path, pixel, region_indices=region_indices
     )
     if pixel == 28:
-        Y_mnist = Y_all[990:1000, :]
-        X_mnist = X_all[990:1000, :]
+        Y_mnist = Y_all[900:910, :]
+        X_mnist = X_all[900:910, :]
     elif pixel == 8:
         Y_mnist = Y_all[64:74, :]
         X_mnist = X_all[64:74, :]
@@ -154,8 +154,8 @@ def speckle_pred(target_path, collect_path, region_indices, pixel=28, alpha=1.0)
         pixel=pixel,
         region_indices=region_indices,
     )
-    X_rand = X_rand[:400, :]
-    Y_rand = Y_rand[:400, :]
+    X_rand = X_rand[:1000, :]
+    Y_rand = Y_rand[:1000, :]
     print("X, Y, rand:", X_rand.shape, Y_rand.shape)
     X_train, X_test, Y_train, Y_test = train_test_split(
         X_rand, Y_rand, test_size=0.2, random_state=42
@@ -193,7 +193,7 @@ def speckle_pred_8(target_path, collect_path, region_indices, pixel, alpha=1.0):
 # ==========================================================================
 # IMAGE PLOT and SAVE
 # ==========================================================================
-def image_display(j, xx, yy, model, epochs, lr, size=28, num=1):
+def image_display(j, xx, yy, model, epochs, lr, size=28, num=1, alpha=1):
     # MSEとSSIMを計算
     mse_val = mean_squared_error(xx, yy)
     ssim_val = ssim_score(xx, yy)
@@ -203,7 +203,7 @@ def image_display(j, xx, yy, model, epochs, lr, size=28, num=1):
     print("SSIM=", ssim_val)
 
     # 保存先のディレクトリを決定
-    save_dir = os.path.join("results", f"pix{size}", str(model))
+    save_dir = os.path.join("../results", f"pix{size}", str(model))
     if not os.path.exists(save_dir):  # 存在しなければ作る
         os.makedirs(save_dir)
 
@@ -228,7 +228,7 @@ def image_display(j, xx, yy, model, epochs, lr, size=28, num=1):
         ax2.axis("off")
 
     # 図を保存
-    save_file = os.path.join(save_dir, f"img_{num}_iter{epochs}_lr{lr}.png")
+    save_file = os.path.join(save_dir, f"img_{num}_iter{epochs}_lr{lr}_a{alpha}.png")
     plt.savefig(save_file)
     print(f"saved! {save_file}")
     # plt.close(fig)
