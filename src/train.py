@@ -6,21 +6,23 @@ import torch.nn as nn
 import torch.optim as optim
 
 # from models.skip import skip
-# from models.unet_ad import UNet1D
-from models.fcmodel import FCModel
+from models.unet_ad import UNet1DShallow
+
+# from models.fcmodel import FCModel
 from utils.exp_utils import (
     image_display,
     load_mnist,
     np_to_torch,
     speckle_pred,
+    total_variation_loss,
 )
 
 # ==========================================================================
 # PIXELS
 # ==========================================================================
 pixel = 28
-
-ALPHA = 1
+TV_strength = 1e-8
+ALPHA = 10
 # ==========================================================================
 # DATA _ PATH
 # ==========================================================================
@@ -53,7 +55,7 @@ elif pixel == 8:
 # ==========================================================================
 region_indices = [0, 1, 2, 3]
 num_images = 10
-learning_rate = 1e-5
+learning_rate = 1e-4
 num_epochs = 2000
 # ==========================================================================
 # Y_mnist Shape: (10, 2500)
@@ -118,10 +120,11 @@ print("Y_mnist max, min:", Y_mnist_tensor.max(), Y_mnist_tensor.min())
 
 for i in range(num_images):
     # initialize model and params
-    model = FCModel(
-        input_size=10000, hidden_size=4096, output_size=784, name="FC_default_4096"
-    ).to(device)
-    # model = UNet1D(name="CV1_conv").to(device)
+    # model = FCModel(
+    #     input_size=10000, hidden_size=4096, output_size=784, name="FC_default_4096"
+    # ).to(device)
+    # model = UNet1D(name="CV1_conv_tv").to(device)
+    model = UNet1DShallow(name="CV_shal_tv_ver2").to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     criterion = nn.MSELoss()
     y_i = Y_mnist_tensor[i].unsqueeze(0).unsqueeze(0)  # (1, 2500)
@@ -133,10 +136,13 @@ for i in range(num_images):
         optimizer.zero_grad()
 
         # output shape: (1, 784)
-        output = model(y_i).squeeze(0)
-
+        out = model(y_i)
+        output = out.squeeze(0)
+        # print(output.shape)
+        # print(S_0_tensor.shape)
         Y_dash = torch.mm(output, S_0_tensor)
-        loss = criterion(Y_dash, y_i.squeeze(0))
+        tv = TV_strength * total_variation_loss(out.reshape((1, 1, 28, 28)))
+        loss = criterion(Y_dash, y_i.squeeze(0)) + tv
         loss.backward()
         optimizer.step()
         if (epoch + 1) % 100 == 0:
@@ -157,11 +163,12 @@ for i in range(num_images):
         size=pixel,
         num=i,
         alpha=ALPHA,
+        tv=TV_strength,
     )
     reconstructed_total.append(reconstucted_target.cpu().numpy())
 
 
 np.savez(
-    f"{save_dir}pix{pixel}_npz/{model.model_name}_img_09_iter{num_epochs}_lr{learning_rate}.npz",
+    f"{save_dir}pix{pixel}_npz/{model.model_name}_img_09_iter{num_epochs}_lr{learning_rate}_a{ALPHA}_tv{TV_strength}.npz",
     reconstructed_total,
 )

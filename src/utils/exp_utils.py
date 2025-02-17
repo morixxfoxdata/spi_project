@@ -158,7 +158,7 @@ def speckle_pred(target_path, collect_path, region_indices, pixel=28, alpha=1.0)
     Y_rand = Y_rand[:1000, :]
     print("X, Y, rand:", X_rand.shape, Y_rand.shape)
     X_train, X_test, Y_train, Y_test = train_test_split(
-        X_rand, Y_rand, test_size=0.2, random_state=42
+        X_rand, Y_rand, test_size=0.8, random_state=42
     )
     model = Ridge(alpha=alpha, fit_intercept=False)
     model.fit(X_train, Y_train)
@@ -193,7 +193,7 @@ def speckle_pred_8(target_path, collect_path, region_indices, pixel, alpha=1.0):
 # ==========================================================================
 # IMAGE PLOT and SAVE
 # ==========================================================================
-def image_display(j, xx, yy, model, epochs, lr, size=28, num=1, alpha=1):
+def image_display(j, xx, yy, model, epochs, lr, size=28, num=1, alpha=1, tv=1e-9):
     # MSEとSSIMを計算
     mse_val = mean_squared_error(xx, yy)
     ssim_val = ssim_score(xx, yy)
@@ -228,7 +228,9 @@ def image_display(j, xx, yy, model, epochs, lr, size=28, num=1, alpha=1):
         ax2.axis("off")
 
     # 図を保存
-    save_file = os.path.join(save_dir, f"img_{num}_iter{epochs}_lr{lr}_a{alpha}.png")
+    save_file = os.path.join(
+        save_dir, f"img_{num}_iter{epochs}_lr{lr}_a{alpha}_tv{tv}.png"
+    )
     plt.savefig(save_file)
     print(f"saved! {save_file}")
     # plt.close(fig)
@@ -257,10 +259,10 @@ def total_variation_loss(x):
     PyTorchでTotal Variation (TV) lossを計算する関数
     x: (batch_size, 1, img_H, img_W) の形状のTensor
     """
-    # 横方向の差分 |x[i, j+1] - x[i, j]|
+    # 縦方向の差分 |x[i, j+1] - x[i, j]|
     tv_h = torch.abs(x[:, :, 1:, :] - x[:, :, :-1, :])
 
-    # 縦方向の差分 |x[i+1, j] - x[i, j]|
+    # 横方向の差分 |x[i+1, j] - x[i, j]|
     tv_w = torch.abs(x[:, :, :, 1:] - x[:, :, :, :-1])
 
     # 総和を取る

@@ -50,6 +50,7 @@ class UNet1D(nn.Module):
         need_sigmoid=True,
         need_bias=True,
         name="UNet1D",
+        time_length=10000,
     ):
         super(UNet1D, self).__init__()
         self.model_name = name if name else self.__class__.__name__
@@ -57,11 +58,11 @@ class UNet1D(nn.Module):
         self.more_layers = more_layers
         self.concat_x = concat_x
 
-        # filters = [64, 128, 256, 512, 1024]
-        filters = [16, 32, 64, 128, 256]
+        filters = [64, 128, 256, 512, 1024]
+        # filters = [16, 32, 64, 128, 256]
         # filters = [64, 128, 256]
         filters = [x // self.feature_scale for x in filters]
-
+        self.before = nn.Sequential(nn.Linear(time_length, 4096), nn.LeakyReLU())
         self.start = unetConv1(
             num_input_channels,
             filters[0] if not concat_x else filters[0] - num_input_channels,
@@ -129,8 +130,8 @@ class UNet1D(nn.Module):
         if need_sigmoid:
             self.final = nn.Sequential(
                 self.final,
-                nn.AdaptiveAvgPool1d(2048),
-                nn.Linear(2048, 784),
+                nn.AdaptiveAvgPool1d(4096),
+                nn.Linear(4096, 784),
                 nn.Tanh(),
             )
 
@@ -140,8 +141,8 @@ class UNet1D(nn.Module):
         down = nn.AvgPool1d(2, 2)
         for i in range(4 + self.more_layers):
             downs.append(down(downs[-1]))
-
-        in64 = self.start(inputs)
+        b64 = self.before(inputs)
+        in64 = self.start(b64)
         if self.concat_x:
             in64 = torch.cat([in64, downs[0]], dim=1)
 
@@ -264,8 +265,166 @@ class unetUp1(nn.Module):
         return output
 
 
+class UNet1DShallow(nn.Module):
+    """
+    1次元用のUNet構造を浅くした版（downとupを各1段ずつ減らした）
+    upsample_mode in ['deconv', 'nearest', 'linear']
+    pad in ['zero', 'replication', 'none']
+    """
+
+    def __init__(
+        self,
+        num_input_channels=1,
+        num_output_channels=1,
+        feature_scale=4,
+        more_layers=0,
+        concat_x=False,
+        upsample_mode="deconv",
+        pad="zero",
+        norm_layer=nn.InstanceNorm1d,
+        need_sigmoid=True,
+        need_bias=True,
+        name="cv_shal",
+        time_length=10000,
+    ):
+        super(UNet1DShallow, self).__init__()
+        self.model_name = name if name else self.__class__.__name__
+        self.feature_scale = feature_scale
+        self.more_layers = more_layers
+        self.concat_x = concat_x
+
+        # down/up を 1 つずつ減らしたため、フィルタ数のリストは 4 要素に
+        filters = [16, 32, 64, 128]
+        filters = [x // self.feature_scale for x in filters]
+
+        self.before = nn.Sequential(nn.Linear(time_length, 4096), nn.LeakyReLU())
+
+        # 最初のConv
+        self.start = unetConv1(
+            num_input_channels,
+            filters[0] if not concat_x else filters[0] - num_input_channels,
+            norm_layer,
+            need_bias,
+            pad,
+        )
+
+        # Down (3段)
+        self.down1 = unetDown1(
+            filters[0],
+            filters[1] if not concat_x else filters[1] - num_input_channels,
+            norm_layer,
+            need_bias,
+            pad,
+        )
+        self.down2 = unetDown1(
+            filters[1],
+            filters[2] if not concat_x else filters[2] - num_input_channels,
+            norm_layer,
+            need_bias,
+            pad,
+        )
+        self.down3 = unetDown1(
+            filters[2],
+            filters[3] if not concat_x else filters[3] - num_input_channels,
+            norm_layer,
+            need_bias,
+            pad,
+        )
+
+        # more_layers > 0 の場合の追加 Down/Up
+        if self.more_layers > 0:
+            self.more_downs = [
+                unetDown1(
+                    filters[3],
+                    filters[3] if not concat_x else filters[3] - num_input_channels,
+                    norm_layer,
+                    need_bias,
+                    pad,
+                )
+                for _ in range(self.more_layers)
+            ]
+            self.more_ups = [
+                unetUp1(filters[3], upsample_mode, need_bias, pad, same_num_filt=True)
+                for _ in range(self.more_layers)
+            ]
+            self.more_downs = ListModule(*self.more_downs)
+            self.more_ups = ListModule(*self.more_ups)
+
+        # Up (3段)
+        #   unetUp1 は in_channels を受け取るが，4段→3段に減ったので
+        #   それぞれ対応するフィルタ数にする
+        self.up3 = unetUp1(filters[2], upsample_mode, need_bias, pad)
+        self.up2 = unetUp1(filters[1], upsample_mode, need_bias, pad)
+        self.up1 = unetUp1(filters[0], upsample_mode, need_bias, pad)
+
+        # 出力
+        self.final = conv(filters[0], num_output_channels, 1, bias=need_bias, pad=pad)
+
+        if need_sigmoid:
+            self.final = nn.Sequential(
+                self.final,
+                nn.AdaptiveAvgPool1d(4096),
+                nn.Linear(4096, 784),
+                nn.Tanh(),
+            )
+
+    def forward(self, inputs):
+        # Downsample 用テンソル（concat_x=Trueの場合に使用）
+        # もともと4階層(＋more_layers)→ダウンサンプリングは 4+more_layers 回
+        # 今回は3階層なので 3+more_layers 回
+        downs = [inputs]
+        down = nn.AvgPool1d(2, 2)
+        for i in range(3 + self.more_layers):
+            downs.append(down(downs[-1]))
+
+        # 最初のConv
+        b64 = self.before(inputs)
+        in64 = self.start(b64)
+        if self.concat_x:
+            in64 = torch.cat([in64, downs[0]], dim=1)
+
+        # Down 1
+        down1 = self.down1(in64)
+        if self.concat_x:
+            down1 = torch.cat([down1, downs[1]], dim=1)
+
+        # Down 2
+        down2 = self.down2(down1)
+        if self.concat_x:
+            down2 = torch.cat([down2, downs[2]], dim=1)
+
+        # Down 3
+        down3 = self.down3(down2)
+        if self.concat_x:
+            down3 = torch.cat([down3, downs[3]], dim=1)
+
+        # more_layers がある場合の追加ダウン/アップ
+        if self.more_layers > 0:
+            prevs = [down3]
+            for kk, d in enumerate(self.more_downs):
+                out = d(prevs[-1])
+                if self.concat_x:
+                    out = torch.cat([out, downs[kk + 4]], dim=1)
+                prevs.append(out)
+
+            # Up
+            up_ = self.more_ups[-1](prevs[-1], prevs[-2])
+            for idx in range(self.more_layers - 1):
+                lay = self.more_ups[self.more_layers - idx - 2]
+                up_ = lay(up_, prevs[self.more_layers - idx - 2])
+        else:
+            up_ = down3
+
+        # Up の合成
+        up3 = self.up3(up_, down2)
+        up2 = self.up2(up3, down1)
+        up1 = self.up1(up2, in64)
+
+        return self.final(up1)
+
+
 if __name__ == "__main__":
-    x = torch.randn(1, 1, 500)
+    x = torch.randn(1, 1, 10000)
     print(x.shape)
     model = UNet1D()
     print(model(x).shape)  # (1, 1, 64)
