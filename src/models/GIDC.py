@@ -5,48 +5,41 @@ import torch.nn as nn
 class GIDC(nn.Module):
     def __init__(self):
         super(GIDC, self).__init__()
-        self.down1_1 = self.down_sample(1, 16, kernel_size=5, stride=1, padding="same")
-        self.down1_2 = self.down_sample(16, 16, kernel_size=5, stride=1, padding="same")
+        # 入力サイズ (1,1,32,32) を保つため、stride=1の畳み込みではpadding=2（= (5-1)/2）を用いる
+        self.down1_1 = self.down_sample(1, 16, kernel_size=5, stride=1, padding=2)
+        self.down1_2 = self.down_sample(16, 16, kernel_size=5, stride=1, padding=2)
         self.down1_3 = self.down_sample(16, 32, kernel_size=5, stride=2, padding=2)
-        self.down2_1 = self.down_sample(32, 32, kernel_size=5, stride=1, padding="same")
-        self.down2_2 = self.down_sample(32, 32, kernel_size=5, stride=1, padding="same")
+        self.down2_1 = self.down_sample(32, 32, kernel_size=5, stride=1, padding=2)
+        self.down2_2 = self.down_sample(32, 32, kernel_size=5, stride=1, padding=2)
         self.down2_3 = self.down_sample(32, 64, kernel_size=5, stride=2, padding=2)
-        self.down3_1 = self.down_sample(64, 64, kernel_size=5, stride=1, padding="same")
-        self.down3_2 = self.down_sample(64, 64, kernel_size=5, stride=1, padding="same")
+        self.down3_1 = self.down_sample(64, 64, kernel_size=5, stride=1, padding=2)
+        self.down3_2 = self.down_sample(64, 64, kernel_size=5, stride=1, padding=2)
         self.down3_3 = self.down_sample(64, 128, kernel_size=5, stride=2, padding=2)
-        self.down4_1 = self.down_sample(
-            128, 128, kernel_size=5, stride=1, padding="same"
-        )
-        self.down4_2 = self.down_sample(
-            128, 128, kernel_size=5, stride=1, padding="same"
-        )
+        self.down4_1 = self.down_sample(128, 128, kernel_size=5, stride=1, padding=2)
+        self.down4_2 = self.down_sample(128, 128, kernel_size=5, stride=1, padding=2)
         self.down4_3 = self.down_sample(128, 256, kernel_size=5, stride=2, padding=2)
-        self.down5_1 = self.down_sample(
-            256, 256, kernel_size=5, stride=1, padding="same"
-        )
-        self.down5_2 = self.down_sample(
-            256, 256, kernel_size=5, stride=1, padding="same"
-        )
+        self.down5_1 = self.down_sample(256, 256, kernel_size=5, stride=1, padding=2)
+        self.down5_2 = self.down_sample(256, 256, kernel_size=5, stride=1, padding=2)
         self.up1_1 = self.up_sample(256, 128, kernel_size=5, stride=2, padding=2)
-        self.up1_2 = self.down_sample(256, 128, kernel_size=5, stride=1, padding="same")
-        self.up1_3 = self.down_sample(128, 128, kernel_size=5, stride=1, padding="same")
+        self.up1_2 = self.down_sample(256, 128, kernel_size=5, stride=1, padding=2)
+        self.up1_3 = self.down_sample(128, 128, kernel_size=5, stride=1, padding=2)
         self.up2_1 = self.up_sample(128, 64, kernel_size=5, stride=2, padding=2)
-        self.up2_2 = self.down_sample(128, 64, kernel_size=5, stride=1, padding="same")
-        self.up2_3 = self.down_sample(64, 64, kernel_size=5, stride=1, padding="same")
+        self.up2_2 = self.down_sample(128, 64, kernel_size=5, stride=1, padding=2)
+        self.up2_3 = self.down_sample(64, 64, kernel_size=5, stride=1, padding=2)
         self.up3_1 = self.up_sample(64, 32, kernel_size=5, stride=2, padding=2)
-        self.up3_2 = self.down_sample(64, 32, kernel_size=5, stride=1, padding="same")
-        self.up3_3 = self.down_sample(32, 32, kernel_size=5, stride=1, padding="same")
+        self.up3_2 = self.down_sample(64, 32, kernel_size=5, stride=1, padding=2)
+        self.up3_3 = self.down_sample(32, 32, kernel_size=5, stride=1, padding=2)
         self.up4_1 = self.up_sample(32, 16, kernel_size=5, stride=2, padding=2)
-        self.up4_2 = self.down_sample(32, 16, kernel_size=5, stride=1, padding="same")
-        self.up4_3 = self.down_sample(16, 16, kernel_size=5, stride=1, padding="same")
-        # self.up5 = self.down_sample(16, 1, kernel_size=5, stride=1, padding="same")
+        self.up4_2 = self.down_sample(32, 16, kernel_size=5, stride=1, padding=2)
+        self.up4_3 = self.down_sample(16, 16, kernel_size=5, stride=1, padding=2)
         self.up5 = nn.Sequential(
-            nn.Conv2d(16, 1, kernel_size=5, stride=1, padding="same"),
+            nn.Conv2d(16, 1, kernel_size=5, stride=1, padding=2),
             nn.BatchNorm2d(1),
             nn.Sigmoid(),
         )
 
     def down_sample(self, in_channels, out_channels, kernel_size, stride, padding):
+        # 【注釈】nn.Conv2d: 2次元畳み込み層。paddingはカーネルサイズが奇数の場合、(kernel_size-1)/2にすると入力と同じ空間サイズとなる
         return nn.Sequential(
             nn.Conv2d(
                 in_channels,
@@ -57,10 +50,10 @@ class GIDC(nn.Module):
             ),
             nn.BatchNorm2d(out_channels),
             nn.LeakyReLU(inplace=True),
-            # nn.Dropout(self.dropout),
         )
 
     def up_sample(self, in_channels, out_channels, kernel_size, stride, padding):
+        # 【注釈】nn.ConvTranspose2d: 転置畳み込み層。output_padding=1 を加えることで、出力サイズを調整している
         return nn.Sequential(
             nn.ConvTranspose2d(
                 in_channels,
@@ -75,68 +68,37 @@ class GIDC(nn.Module):
         )
 
     def forward(self, x):
-        d1_1 = self.down1_1(x)  # d1:(1, 16, 32, 32)
-        # print(d1_1.shape)
-        d1_2 = self.down1_2(d1_1)  # res
-        # print(d1_2.shape)
-        d1_3 = self.down1_3(d1_2)
-        # print(d1_3.shape)
-        d2_1 = self.down2_1(d1_3)
-        # print(d2_1.shape)
-        d2_2 = self.down2_2(d2_1)  # res
-        # print(d2_2.shape)
-        d2_3 = self.down2_3(d2_2)
-        # print(d2_3.shape)
-        d3_1 = self.down3_1(d2_3)
-        # print(d3_1.shape)
-        d3_2 = self.down3_2(d3_1)  # res
-        # print(d3_2.shape)
-        d3_3 = self.down3_3(d3_2)
-        # print(d3_3.shape)
-        d4_1 = self.down4_1(d3_3)
-        # print(d4_1.shape)
-        d4_2 = self.down4_2(d4_1)  # res
-        # print("res:", d4_2.shape)
-        d4_3 = self.down4_3(d4_2)
-        # print(d4_3.shape)
-        d5_1 = self.down5_1(d4_3)
-        # print(d5_1.shape)
-        d5_2 = self.down5_2(d5_1)
-        # print(d5_2.shape)
-        up1_1 = self.up1_1(d5_2)
-        # print(up1_1.shape)
-        cat1 = torch.cat([d4_2, up1_1], dim=1)
-        # print(cat1.shape)
-        up1_2 = self.up1_2(cat1)
-        # print(up1_2.shape)
-        up1_3 = self.up1_3(up1_2)
-        # print(up1_3.shape)
-        up2_1 = self.up2_1(up1_3)
-        # print("up21:", up2_1.shape)
-        cat2 = torch.cat([d3_2, up2_1], dim=1)
-        # print(cat2.shape)
-        up2_2 = self.up2_2(cat2)
-        # print(up2_2.shape)
-        up2_3 = self.up2_3(up2_2)
-        # print(up2_3.shape)
-        up3_1 = self.up3_1(up2_3)
-        # print(up3_1.shape)
-        cat3 = torch.cat([d2_2, up3_1], dim=1)
-        # print(cat3.shape)
-        up3_2 = self.up3_2(cat3)
-        # print(up3_2.shape)
-        up3_3 = self.up3_3(up3_2)
-        # print(up3_3.shape)
-        up4_1 = self.up4_1(up3_3)
-        # print(up4_1.shape)
-        cat4 = torch.cat([d1_2, up4_1], dim=1)
-        # print(cat4.shape)
-        up4_2 = self.up4_2(cat4)
-        # print(up4_2.shape)
-        up4_3 = self.up4_3(up4_2)
-        # print(up4_3.shape)
-        up5 = self.up5(up4_3)
-        # print(up5.shape)
+        d1_1 = self.down1_1(x)  # (1, 16, 32, 32)
+        d1_2 = self.down1_2(d1_1)  # (1, 16, 32, 32)
+        d1_3 = self.down1_3(d1_2)  # (1, 32, 16, 16)
+        d2_1 = self.down2_1(d1_3)  # (1, 32, 16, 16)
+        d2_2 = self.down2_2(d2_1)  # (1, 32, 16, 16)
+        d2_3 = self.down2_3(d2_2)  # (1, 64, 8, 8)
+        d3_1 = self.down3_1(d2_3)  # (1, 64, 8, 8)
+        d3_2 = self.down3_2(d3_1)  # (1, 64, 8, 8)
+        d3_3 = self.down3_3(d3_2)  # (1, 128, 4, 4)
+        d4_1 = self.down4_1(d3_3)  # (1, 128, 4, 4)
+        d4_2 = self.down4_2(d4_1)  # (1, 128, 4, 4)
+        d4_3 = self.down4_3(d4_2)  # (1, 256, 2, 2)
+        d5_1 = self.down5_1(d4_3)  # (1, 256, 2, 2)
+        d5_2 = self.down5_2(d5_1)  # (1, 256, 2, 2)
+        up1_1 = self.up1_1(d5_2)  # (1, 128, 4, 4)
+        cat1 = torch.cat([d4_2, up1_1], dim=1)  # (1, 256, 4, 4)
+        up1_2 = self.up1_2(cat1)  # (1, 128, 4, 4)
+        up1_3 = self.up1_3(up1_2)  # (1, 128, 4, 4)
+        up2_1 = self.up2_1(up1_3)  # (1, 64, 8, 8)
+        cat2 = torch.cat([d3_2, up2_1], dim=1)  # (1, 128, 8, 8)
+        up2_2 = self.up2_2(cat2)  # (1, 64, 8, 8)
+        up2_3 = self.up2_3(up2_2)  # (1, 64, 8, 8)
+        up3_1 = self.up3_1(up2_3)  # (1, 32, 16, 16)
+        cat3 = torch.cat([d2_2, up3_1], dim=1)  # (1, 64, 16, 16)
+        up3_2 = self.up3_2(cat3)  # (1, 32, 16, 16)
+        up3_3 = self.up3_3(up3_2)  # (1, 32, 16, 16)
+        up4_1 = self.up4_1(up3_3)  # (1, 16, 32, 32)
+        cat4 = torch.cat([d1_2, up4_1], dim=1)  # (1, 32, 32, 32)
+        up4_2 = self.up4_2(cat4)  # (1, 16, 32, 32)
+        up4_3 = self.up4_3(up4_2)  # (1, 16, 32, 32)
+        up5 = self.up5(up4_3)  # (1, 1, 32, 32)
         return up5
 
 
@@ -288,7 +250,8 @@ class GIDC28(nn.Module):
 
 if __name__ == "__main__":
     # kernel_sizeの値を変えても動作する例（ここでは kernel_size=7）
-    net = GIDC28(kernel_size=5)
-    dummy_input = torch.randn(1, 1, 28, 28)
+    # net = GIDC28(kernel_size=5)
+    net = GIDC()
+    dummy_input = torch.randn(1, 1, 32, 32)
     output = net(dummy_input)
     print(output.shape)  # 例: torch.Size([1, 1, 28, 28])

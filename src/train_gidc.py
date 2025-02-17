@@ -91,14 +91,16 @@ else:
 
 print("Using device:", device)
 # S_0_tensor = S_0_tensor.to(device)
-
-
+print("Y_mnist_tensor shape:", Y_mnist_tensor.shape)
+print("S_0_tensor shape:", S_0_tensor.shape)
 R = torch.sum(S_0_tensor, dim=0)  # R[i] = sum(P_i)
+print("R shape:", R.shape)
 avg_Y = torch.mean(Y_mnist_tensor, dim=1, keepdim=True)
 avg_R = torch.mean(R)
+print("avg Y, R shape:", avg_Y.shape, avg_R.shape)
 weight = Y_mnist_tensor - (avg_Y / avg_R) * R
 I_rec = torch.matmul(weight, S_0_tensor.T) / num_patterns
-
+print("I_rec shape:", I_rec.shape)
 
 plt.show()
 S_0_tensor = S_0_tensor.to(device)
@@ -121,9 +123,10 @@ for epoch in range(num_epochs):
     model.train()
     optimizer.zero_grad()
     output = model(I_rec)
-    # print(output.shape)
-    # print(S_0_tensor.shape)
+    print(output.shape)
+    print(S_0_tensor.shape)
     Y_dash = torch.mm(output.reshape((1, 784)), S_0_tensor)
+    print("Y_dash:", Y_dash.shape)
     tv = TV_strength * total_variation_loss(output)
     loss = criterion(Y_dash, y_.squeeze(0)) + tv
     loss.backward()
