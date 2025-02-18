@@ -1,49 +1,44 @@
 import os
 
+import matplotlib.pyplot as plt
 import numpy as np
-import optuna
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from sklearn.metrics import mean_squared_error
 
-import wandb
-from models.unet_ad import UNet1D
+from models.GIDC import GIDC28
 from utils.exp_utils import (
     image_display,
     load_mnist,
     np_to_torch,
-    speckle_pred,
-    ssim_score,
+    speckle_pred_inv,
+    total_variation_loss_v2,
 )
 
+seed = 42
+np.random.seed(seed)
+
+# PyTorchのCPU用シードを固定
+torch.manual_seed(seed)
+# PyTorchのGPU用シードを固定（複数GPUがある場合は全てに対して設定）
+torch.cuda.manual_seed(seed)
+torch.cuda.manual_seed_all(seed)
+# cuDNNの非決定性を防ぐための設定
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+
+# ==========================================================================
+# PIXELS
+# ==========================================================================
 pixel = 28
-# CUDAが使えるかどうかの判定
-if torch.cuda.is_available():
-    device = "cuda"
-elif torch.backends.mps.is_available():
-    device = "mps"
-else:
-    device = "cpu"
 
 # ==========================================================================
 # DATA _ PATH
 # ==========================================================================
 exp_data_dir = "../data/experiment"
 save_dir = "../results/"
-os.makedirs(save_dir, exist_ok=True)  # 保存先ディレクトリを作成
 
-num_images = 10
-
-if pixel == 8:
-    exp_collected = os.path.join(
-        exp_data_dir,
-        "collect/HP+mosaic+rand_image64+10+500_size8x8_alternate_200x20020240618_collect.npz",
-    )
-    exp_target = os.path.join(
-        exp_data_dir, "target/HP_mosaic_random_size8x8_image64+10+500_alternate.npz"
-    )
-elif pixel == 28:
+if pixel == 28:
     exp_collected = os.path.join(
         exp_data_dir,
         "collect/Mnist+Rand_pix28x28_image(1000+1000)x2_sig2500_4wave_newPD.npz",
@@ -51,121 +46,105 @@ elif pixel == 28:
     exp_target = os.path.join(
         exp_data_dir, "target/Mnist+Rand_pix28x28_image(1000+1000)x2.npz"
     )
-
-# MODEL = FCModel(input_size=500, hidden_size=256, output_size=64, name="FC_trial_2")
-MODEL = UNet1D(name="TRIAL_UNet1D_v1")
+elif pixel == 8:
+    exp_collected = os.path.join(
+        exp_data_dir,
+        "collect/HP+mosaic+rand_image64+10+500_size8x8_alternate_200x20020240618_collect.npz",
+    )
+    exp_target = os.path.join(
+        exp_data_dir, "target/HP_mosaic_random_size8x8_image64+10+500_alternate.npz"
+    )
 region_indices = [0, 1, 2, 3]
 
-# グローバル変数でベストトライアルの結果を格納
-best_reconstructed_total = None  # ベストトライアルの画像データ
-best_trial_number = None  # ベストトライアルの番号
+# ※実際には既に与えられたデータを使用してください。
+num_images = 1000  # 画像枚数
+num_pixels = 784  # 1枚の画像のピクセル数（例：28×28）
+num_patterns = 10000  # 照明パターン枚数
+
+learning_rate = 0.05
+num_epochs = 5000
+TV_strength = 7e-9
+
+# データの読み込み
 X_mnist, Y_mnist = load_mnist(
     target_path=exp_target,
     collect_path=exp_collected,
     pixel=pixel,
     region_indices=region_indices,
 )
+S_0 = speckle_pred_inv(
+    target_path=exp_target,
+    collect_path=exp_collected,
+    region_indices=region_indices,
+    pixel=pixel,
+)
+print("X_mnist, Y_mnist, S_0 shape:", X_mnist.shape, Y_mnist.shape, S_0.shape)
 
+# CUDA, MPS, CPU の判定
+if torch.cuda.is_available():
+    device = "cuda"
+elif torch.backends.mps.is_available():
+    device = "mps"
+else:
+    device = "cpu"
+print("Using device:", device)
 
-def objective(trial):
-    global best_reconstructed_total, best_trial_number  # ベストトライアル用のグローバル変数
+S_0_tensor = np_to_torch(S_0).float().to(device)
+X_mnist_tensor = np_to_torch(X_mnist).float()
+Y_mnist_tensor = np_to_torch(Y_mnist).float()
+S_0_pinv = np.linalg.pinv(S_0)
+rec_mnist = np.dot(Y_mnist, S_0_pinv)
+rec_tensor = np_to_torch(rec_mnist).float()
 
-    # WandBでトライアルごとにセッションを開始
-    wandb.init(project="UNet1D_28px_v2", name=f"trial_{trial.number}")
+criterion = nn.MSELoss()
 
-    num_epochs = trial.suggest_int("num_epochs", 3000, 30000)
-    learning_rate = trial.suggest_float("learning_rate", 1e-6, 1e-3, log=True)
+# num=0～9 の各画像についてトレーニングを実施
+for num in range(10):
+    print(f"\n================ Image {num} の学習開始 ================\n")
 
-    model = MODEL
-    S_0 = speckle_pred(
-        target_path=exp_target,
-        collect_path=exp_collected,
-        region_indices=region_indices,
-        pixel=pixel,
-        alpha=1.0,
-    )
-    S_0_tensor = np_to_torch(S_0).float().to(device)
+    # 各画像に対する再構成画像と目標値を用意
+    rec = rec_tensor[num].reshape((1, 1, pixel, pixel)).to(device)
+    y_ = Y_mnist_tensor[num].to(device)
 
-    Y_mnist_tensor = np_to_torch(Y_mnist).float()
+    # モデル、オプティマイザ、スケジューラを再初期化
+    model = GIDC28(kernel_size=7, name="GIDC_tv_v2").to(device)
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+    # scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.999)
 
-    reconstructed_total = []
-    for i in range(num_images):
-        print("====================================")
-        print(f"NUMBER : {i}")
-        y_i = Y_mnist_tensor[i].unsqueeze(0).unsqueeze(0)
-        y_i = y_i.to(device)
-        print("y_i shape:", y_i.shape)
-        model = MODEL.to(device)
-        optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-        criterion = nn.MSELoss()
+    for epoch in range(num_epochs):
         model.train()
-        for epoch in range(num_epochs):
-            optimizer.zero_grad()
+        optimizer.zero_grad()
+        output = model(rec)
+        Y_dash = torch.mm(output.reshape(1, num_pixels), S_0_tensor)
+        tv = total_variation_loss_v2(output, tv_strength=TV_strength)
+        loss = criterion(Y_dash, y_.unsqueeze(0)) + tv
+        loss.backward()
+        optimizer.step()
+        # scheduler.step()  # 各エポック終了後に学習率を更新
 
-            output = model(y_i).squeeze(0)
-
-            Y_dash = torch.mm(output, S_0_tensor)
-            loss = criterion(Y_dash, y_i.squeeze(0))
-            loss.backward()
-            optimizer.step()
-            if (epoch + 1) % 100 == 0:
-                print(
-                    f"Image {i}, Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.14f}"
+        if (epoch + 1) % 1000 == 0:
+            current_lr = optimizer.param_groups[0]["lr"]
+            print(
+                f"Image {num}, Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.14f}, LR: {current_lr:.8f}"
+            )
+            model.eval()
+            with torch.no_grad():
+                reconstucted_target = (
+                    model(rec).squeeze(0).squeeze(0).reshape(num_pixels)
                 )
-        model.eval()
-        with torch.no_grad():
-            reconstucted_target = model(y_i).squeeze(0).squeeze(0)
-            print(reconstucted_target.shape)
-        reconstructed_total.append(reconstucted_target.cpu().numpy())
+                print("再構成画像の shape:", reconstucted_target.shape)
+            image_display(
+                1,
+                X_mnist[num, :],
+                reconstucted_target.cpu().numpy(),
+                model=model.model_name,
+                epochs=epoch + 1,
+                lr=current_lr,
+                size=pixel,
+                num=num,
+                alpha=0,
+                tv=TV_strength,
+            )
+            plt.close()
 
-    reconstructed_total = np.vstack(reconstructed_total)
-    mse_val = mean_squared_error(X_mnist, reconstructed_total)
-    ssim_val = 1 - ssim_score(X_mnist, reconstructed_total)
-    # ベストトライアルを更新
-    if trial.number == 0 or ssim_val < trial.study.best_value:
-        best_reconstructed_total = reconstructed_total  # 最良の結果を保存
-        best_trial_number = trial.number  # 最良トライアル番号を記録
-
-    # WandBにトライアルごとの結果を記録
-    wandb.log(
-        {
-            "trial_number": trial.number,
-            "mse": mse_val,
-            "ssim": 1 - ssim_val,
-            "reconstructed_images": [
-                wandb.Image(img.reshape((pixel, -1))) for img in reconstructed_total
-            ],
-        }
-    )
-
-    # WandBセッション終了
-    wandb.finish()
-
-    return ssim_val
-
-
-# Optunaの実験開始
-study = optuna.create_study(direction="minimize")
-study.optimize(objective, n_trials=15)
-
-# ベストトライアル結果を保存
-if best_reconstructed_total is not None:
-    save_path = os.path.join(save_dir, f"best_trial_{best_trial_number}_results.npz")
-    np.savez(save_path, reconstructed_total=best_reconstructed_total)
-    print(f"Best trial results saved to {save_path}")
-
-# 結果を確認
-print(f"Best trial: {study.best_trial.number}")
-print(f"Best mse: {study.best_value}")
-
-for i in range(num_images):
-    image_display(
-        1,
-        X_mnist[i, :],
-        best_reconstructed_total[i],
-        model=MODEL.model_name,
-        epochs=study.best_params["num_epochs"],
-        lr=study.best_params["learning_rate"],
-        size=pixel,
-        num=i,
-    )
+    print(f"\n================ Image {num} の学習終了 ================\n")

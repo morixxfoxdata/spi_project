@@ -160,7 +160,7 @@ def speckle_pred(target_path, collect_path, region_indices, pixel=28, alpha=1.0)
     X_train, X_test, Y_train, Y_test = train_test_split(
         X_rand, Y_rand, test_size=0.8, random_state=42
     )
-    model = Ridge(alpha=alpha, fit_intercept=False)
+    model = Ridge(alpha=alpha)
     model.fit(X_train, Y_train)
     Y_pred_test = model.predict(X_test)
     mse = mean_squared_error(Y_test, Y_pred_test)
@@ -168,6 +168,21 @@ def speckle_pred(target_path, collect_path, region_indices, pixel=28, alpha=1.0)
     S_est = model.coef_.T
     print("S_est shape:", S_est.shape)
     return S_est
+
+
+def speckle_pred_inv(target_path, collect_path, region_indices, pixel=28):
+    X_rand, Y_rand = load_random(
+        target_path=target_path,
+        collect_path=collect_path,
+        pixel=pixel,
+        region_indices=region_indices,
+    )
+    X_rand = X_rand[:1000, :]
+    Y_rand = Y_rand[:1000, :]
+    X_pinv = np.linalg.pinv(X_rand)
+    S = np.dot(X_pinv, Y_rand)  # S: (784, 10000)
+    print("Sの形状:", S.shape)
+    return S
 
 
 def speckle_pred_8(target_path, collect_path, region_indices, pixel, alpha=1.0):
@@ -267,3 +282,32 @@ def total_variation_loss(x):
 
     # 総和を取る
     return torch.sum(tv_h) + torch.sum(tv_w)
+
+
+def total_variation_loss_v2(x_pred, tv_strength):
+    """
+    Total Variation (TV) Lossを計算する関数です。
+
+    パラメータ:
+        x_pred (torch.Tensor): 入力テンソル。形状は [batch_size, img_W, img_H] または [batch_size, 1, img_W, img_H]
+                               ※注釈: TV lossは画像の平滑性を促進する正則化項です。
+        tv_strength (float): TV lossに掛ける重み（スカラー）。
+
+    戻り値:
+        TV lossにtv_strengthを掛けた値。
+    """
+    # 入力が [batch_size, img_W, img_H] の場合、チャネル次元を追加して [batch_size, 1, img_W, img_H] に変換します。
+    if x_pred.dim() == 3:
+        x_pred = x_pred.unsqueeze(1)
+
+    # 縦方向（height方向）の隣接画素間の差分の絶対値を計算
+    # ※注釈: torch.abs は各要素の絶対値を計算します。
+    diff_h = torch.abs(x_pred[:, :, 1:, :] - x_pred[:, :, :-1, :])
+
+    # 横方向（width方向）の隣接画素間の差分の絶対値を計算
+    diff_w = torch.abs(x_pred[:, :, :, 1:] - x_pred[:, :, :, :-1])
+
+    # 縦横の差分を合計してTV lossを得ます。
+    tv = torch.sum(diff_h) + torch.sum(diff_w)
+
+    return tv_strength * tv

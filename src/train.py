@@ -5,24 +5,46 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-# from models.skip import skip
-from models.unet_ad import UNet1DShallow
-
 # from models.fcmodel import FCModel
+# from models.skip import skip
+from models.unet_ad import UNet1D
 from utils.exp_utils import (
     image_display,
     load_mnist,
     np_to_torch,
-    speckle_pred,
+    speckle_pred_inv,
     total_variation_loss,
 )
+
+# 固定したいシード値を指定（例：42）
+seed = 42
+
+# Pythonの組み込み乱数のシードを固定
+
+
+# NumPyの乱数シードを固定
+np.random.seed(seed)
+
+# PyTorchのCPU用シードを固定
+torch.manual_seed(seed)
+
+# PyTorchのGPU用シードを固定（複数GPUがある場合は全てに対して設定）
+torch.cuda.manual_seed(seed)
+torch.cuda.manual_seed_all(seed)
+
+# cuDNNの非決定性を防ぐための設定
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+# from models.skip import skip
+# from models.fcmodel import FCModel
+
 
 # ==========================================================================
 # PIXELS
 # ==========================================================================
 pixel = 28
 TV_strength = 1e-8
-ALPHA = 10
+ALPHA = 0
 # ==========================================================================
 # DATA _ PATH
 # ==========================================================================
@@ -53,7 +75,7 @@ elif pixel == 8:
 # region_indices=[0, 1]: 0から5000点を利用
 # region_indices=2：5000から7500点を利用
 # ==========================================================================
-region_indices = [0, 1, 2, 3]
+region_indices = [0, 1, 2]
 num_images = 10
 learning_rate = 1e-4
 num_epochs = 2000
@@ -73,14 +95,20 @@ X_mnist, Y_mnist = load_mnist(
 #         region_indices=region_indices,
 #         pixel=8,
 #     )
-
-S_0 = speckle_pred(
+S_0 = speckle_pred_inv(
     target_path=exp_target,
     collect_path=exp_collected,
     region_indices=region_indices,
     pixel=pixel,
-    alpha=ALPHA,
 )
+
+# S_0 = speckle_pred(
+#     target_path=exp_target,
+#     collect_path=exp_collected,
+#     region_indices=region_indices,
+#     pixel=pixel,
+#     alpha=ALPHA,
+# )
 print("S_0 shape:", S_0.shape)
 
 
@@ -121,10 +149,11 @@ print("Y_mnist max, min:", Y_mnist_tensor.max(), Y_mnist_tensor.min())
 for i in range(num_images):
     # initialize model and params
     # model = FCModel(
-    #     input_size=10000, hidden_size=4096, output_size=784, name="FC_default_4096"
+    #     input_size=5000, hidden_size=2048, output_size=784, name="01_FC_2048_tv"
     # ).to(device)
-    # model = UNet1D(name="CV1_conv_tv").to(device)
-    model = UNet1DShallow(name="CV_shal_tv_ver2").to(device)
+    model = UNet1D(name="012_CV1_tv_b2fc").to(device)
+    # model = skip().to(device)
+    # model = UNet1DShallow(name="CV_shal_tv_1").to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     criterion = nn.MSELoss()
     y_i = Y_mnist_tensor[i].unsqueeze(0).unsqueeze(0)  # (1, 2500)

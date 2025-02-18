@@ -49,7 +49,7 @@ def skip(
 
     model = nn.Sequential()
     model_tmp = model
-    model.model_name = "skip"
+    model.model_name = "skip_tv"
     input_depth = num_input_channels
     for i in range(len(num_channels_down)):
         deeper = nn.Sequential()

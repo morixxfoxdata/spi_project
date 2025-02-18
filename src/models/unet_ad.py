@@ -50,7 +50,7 @@ class UNet1D(nn.Module):
         need_sigmoid=True,
         need_bias=True,
         name="UNet1D",
-        time_length=10000,
+        time_length=7500,
     ):
         super(UNet1D, self).__init__()
         self.model_name = name if name else self.__class__.__name__
@@ -62,7 +62,13 @@ class UNet1D(nn.Module):
         # filters = [16, 32, 64, 128, 256]
         # filters = [64, 128, 256]
         filters = [x // self.feature_scale for x in filters]
-        self.before = nn.Sequential(nn.Linear(time_length, 4096), nn.LeakyReLU())
+        self.before = nn.Sequential(
+            nn.Linear(time_length, 4096),
+            nn.LeakyReLU(),
+            nn.Linear(4096, 2048),
+            nn.LeakyReLU(),
+            nn.Dropout(p=0.2),
+        )
         self.start = unetConv1(
             num_input_channels,
             filters[0] if not concat_x else filters[0] - num_input_channels,
@@ -130,8 +136,8 @@ class UNet1D(nn.Module):
         if need_sigmoid:
             self.final = nn.Sequential(
                 self.final,
-                nn.AdaptiveAvgPool1d(4096),
-                nn.Linear(4096, 784),
+                nn.AdaptiveAvgPool1d(2048),
+                nn.Linear(2048, 784),
                 nn.Tanh(),
             )
 
