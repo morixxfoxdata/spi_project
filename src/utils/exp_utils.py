@@ -185,6 +185,16 @@ def speckle_pred_inv(target_path, collect_path, region_indices, pixel=28):
     return S
 
 
+def img_reconstruction(S, Y):
+    """
+    S: size(784, 10000)
+    Y: size(10, 10000)
+    """
+    S_pinv = np.linalg.pinv(S)
+    rec_img = np.dot(Y, S_pinv)
+    return rec_img
+
+
 def speckle_pred_8(target_path, collect_path, region_indices, pixel, alpha=1.0):
     X_rand_, Y_rand_ = load_random(target_path, collect_path, pixel, region_indices)
     X_hadamard, Y_hadamard = load_hadamard(
@@ -270,17 +280,12 @@ def ssim_score(img1, img2):
 # plt.imshow(S_estimated[:, 0].reshape((28, -1)))
 # plt.show()
 def total_variation_loss(x):
-    """
-    PyTorchでTotal Variation (TV) lossを計算する関数
-    x: (batch_size, 1, img_H, img_W) の形状のTensor
-    """
     # 縦方向の差分 |x[i, j+1] - x[i, j]|
     tv_h = torch.abs(x[:, :, 1:, :] - x[:, :, :-1, :])
 
     # 横方向の差分 |x[i+1, j] - x[i, j]|
     tv_w = torch.abs(x[:, :, :, 1:] - x[:, :, :, :-1])
 
-    # 総和を取る
     return torch.sum(tv_h) + torch.sum(tv_w)
 
 

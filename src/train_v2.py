@@ -35,8 +35,8 @@ pixel = 28
 # ==========================================================================
 # DATA _ PATH
 # ==========================================================================
-exp_data_dir = "../data/experiment"
-save_dir = "../results/"
+exp_data_dir = "data/experiment"
+save_dir = "results/"
 
 if pixel == 28:
     exp_collected = os.path.join(
@@ -94,6 +94,9 @@ X_mnist_tensor = np_to_torch(X_mnist).float()
 Y_mnist_tensor = np_to_torch(Y_mnist).float()
 S_0_pinv = np.linalg.pinv(S_0)
 rec_mnist = np.dot(Y_mnist, S_0_pinv)
+# plt.imshow(rec_mnist[3].reshape((28, 28)), cmap="gray")
+# plt.show()
+
 rec_tensor = np_to_torch(rec_mnist).float()
 
 criterion = nn.MSELoss()
