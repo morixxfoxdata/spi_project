@@ -181,7 +181,7 @@ def speckle_pred_inv(target_path, collect_path, region_indices, pixel=28):
     Y_rand = Y_rand[:1000, :]
     X_pinv = np.linalg.pinv(X_rand)
     S = np.dot(X_pinv, Y_rand)  # S: (784, 10000)
-    print("Sの形状:", S.shape)
+    print("S shape:", S.shape)
     return S
 
 
