@@ -245,8 +245,8 @@ def image_display(j, xx, yy, model, epochs, lr, size=28, num=1, alpha=1, tv=1e-9
         ax2.set_title("Reconstruction")
 
         # それぞれの画像を描画
-        ax1.imshow(xx.reshape(size, size), cmap="gray", vmin=-1, vmax=1)
-        ax2.imshow(yy.reshape(size, size), cmap="gray", vmin=-1, vmax=1)
+        ax1.imshow(xx.reshape(size, size), cmap="gray", vmin=0, vmax=1)
+        ax2.imshow(yy.reshape(size, size), cmap="gray", vmin=0, vmax=1)
 
         # 軸の目盛りを非表示
         ax1.axis("off")

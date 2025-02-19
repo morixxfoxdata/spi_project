@@ -9,11 +9,10 @@ import torch.optim as optim
 from models.GIDC import GIDC28_for_notdiff
 from utils.exp_utils import (
     image_display,
-    load_mnist,
     np_to_torch,
-    speckle_pred_inv,
     total_variation_loss_v2,
 )
+from utils.undiff_utils import load_mnist_undiff, speckle_pred_inv_diff
 
 seed = 42
 np.random.seed(seed)
@@ -35,8 +34,8 @@ pixel = 28
 # ==========================================================================
 # DATA _ PATH
 # ==========================================================================
-exp_data_dir = "data/experiment"
-save_dir = "results/"
+exp_data_dir = "../data/experiment"
+save_dir = "../results/"
 
 if pixel == 28:
     exp_collected = os.path.join(
@@ -63,20 +62,26 @@ num_patterns = 10000  # 照明パターン枚数
 
 learning_rate = 0.05
 num_epochs = 5000
-TV_strength = 7e-9
+TV_strength = 8e-9
 
 # データの読み込み
-X_mnist, Y_mnist = load_mnist(
-    target_path=exp_target,
-    collect_path=exp_collected,
-    pixel=pixel,
-    region_indices=region_indices,
+# X_mnist, Y_mnist = load_mnist(
+#     target_path=exp_target,
+#     collect_path=exp_collected,
+#     pixel=pixel,
+#     region_indices=region_indices,
+# )
+X_mnist, Y_mnist = load_mnist_undiff(
+    target_path=exp_target, collect_path=exp_collected, color="black"
 )
-S_0 = speckle_pred_inv(
-    target_path=exp_target,
-    collect_path=exp_collected,
-    region_indices=region_indices,
-    pixel=pixel,
+# S_0 = speckle_pred_inv(
+#     target_path=exp_target,
+#     collect_path=exp_collected,
+#     region_indices=region_indices,
+#     pixel=pixel,
+# )
+S_0 = speckle_pred_inv_diff(
+    target_path=exp_target, collect_path=exp_collected, color="black"
 )
 print("X_mnist, Y_mnist, S_0 shape:", X_mnist.shape, Y_mnist.shape, S_0.shape)
 
@@ -89,10 +94,10 @@ else:
     device = "cpu"
 print("Using device:", device)
 
-S_0_tensor = np_to_torch(S_0).float().to(device)
+S_0_tensor = np_to_torch(S_0 * 2).float().to(device)
 X_mnist_tensor = np_to_torch(X_mnist).float()
 Y_mnist_tensor = np_to_torch(Y_mnist).float()
-S_0_pinv = np.linalg.pinv(S_0)
+S_0_pinv = np.linalg.pinv(S_0 * 2)
 rec_mnist = np.dot(Y_mnist, S_0_pinv)
 # plt.imshow(rec_mnist[3].reshape((28, 28)), cmap="gray")
 # plt.show()
@@ -110,7 +115,7 @@ for num in range(10):
     y_ = Y_mnist_tensor[num].to(device)
 
     # モデル、オプティマイザ、スケジューラを再初期化
-    model = GIDC28_for_notdiff(kernel_size=7, name="GIDC_white").to(device)
+    model = GIDC28_for_notdiff(kernel_size=7, name="GIDC_black_S2").to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     # scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.999)
 
