@@ -291,28 +291,20 @@ def total_variation_loss(x):
 
 def total_variation_loss_v2(x_pred, tv_strength):
     """
-    Total Variation (TV) Lossを計算する関数です。
+    Total Variation (TV) Loss
 
     パラメータ:
-        x_pred (torch.Tensor): 入力テンソル。形状は [batch_size, img_W, img_H] または [batch_size, 1, img_W, img_H]
-                               ※注釈: TV lossは画像の平滑性を促進する正則化項です。
-        tv_strength (float): TV lossに掛ける重み（スカラー）。
+        x_pred (torch.Tensor):  [batch_size, img_W, img_H] または [batch_size, 1, img_W, img_H]
+        tv_strength (float): TV lossに掛ける重み
 
     戻り値:
         TV lossにtv_strengthを掛けた値。
     """
-    # 入力が [batch_size, img_W, img_H] の場合、チャネル次元を追加して [batch_size, 1, img_W, img_H] に変換します。
+
     if x_pred.dim() == 3:
         x_pred = x_pred.unsqueeze(1)
-
-    # 縦方向（height方向）の隣接画素間の差分の絶対値を計算
-    # ※注釈: torch.abs は各要素の絶対値を計算します。
     diff_h = torch.abs(x_pred[:, :, 1:, :] - x_pred[:, :, :-1, :])
-
-    # 横方向（width方向）の隣接画素間の差分の絶対値を計算
     diff_w = torch.abs(x_pred[:, :, :, 1:] - x_pred[:, :, :, :-1])
-
-    # 縦横の差分を合計してTV lossを得ます。
     tv = torch.sum(diff_h) + torch.sum(diff_w)
 
     return tv_strength * tv
