@@ -7,11 +7,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 from models.GIDC import GIDC28_for_notdiff
-from utils.exp_utils import (
-    image_display,
-    np_to_torch,
-    total_variation_loss_v2,
-)
+from utils.exp_utils import image_display, np_to_torch, total_variation_loss_v2
 from utils.undiff_utils import load_mnist_undiff, speckle_pred_inv_diff
 
 seed = 42
@@ -99,8 +95,9 @@ X_mnist_tensor = np_to_torch(X_mnist).float()
 Y_mnist_tensor = np_to_torch(Y_mnist).float()
 S_0_pinv = np.linalg.pinv(S_0 * 2)
 rec_mnist = np.dot(Y_mnist, S_0_pinv)
-# plt.imshow(rec_mnist[3].reshape((28, 28)), cmap="gray")
-# plt.show()
+plt.imshow(rec_mnist[0].reshape((28, 28)), cmap="gray")
+plt.colorbar()
+plt.show()
 
 rec_tensor = np_to_torch(rec_mnist).float()
 

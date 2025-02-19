@@ -1,6 +1,5 @@
 import os
 
-import matplotlib.pyplot as plt
 import numpy as np
 
 # ==========================================================================
@@ -76,11 +75,15 @@ if __name__ == "__main__":
     )
     print("MNIST shape:", X_mnist.shape, Y_mnist.shape)
     print("random shape:", X_random.shape, Y_random.shape)
+    S_0 = speckle_pred_inv_diff(
+        target_path=exp_target, collect_path=exp_collected, color="black"
+    )
+    print(S_0[:, 0] * 2)
     # print("target_1 val:", target[1])
     # print("collect_1 val:", collect[1])
     # print("collect_0 val:", collect[0])
-    plt.imshow(X_mnist[1].reshape((28, -1)), cmap="gray")
-    plt.show()
+    # plt.imshow(X_mnist[1].reshape((28, -1)), cmap="gray")
+    # plt.show()
     # fig, ax = plt.subplots()
     # ax.hist(X_mnist[1])
     # plt.show()
