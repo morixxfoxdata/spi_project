@@ -394,7 +394,7 @@ class GIDC28_for_notdiff(nn.Module):
 if __name__ == "__main__":
     # kernel_sizeの値を変えても動作する例（ここでは kernel_size=7）
     # net = GIDC28(kernel_size=5)
-    net = GIDC28(kernel_size=7)
+    net = GIDC28_for_notdiff(kernel_size=3)
     dummy_input = torch.randn(1, 1, 28, 28)
     output = net(dummy_input)
     print(output.shape)  # 例: torch.Size([1, 1, 28, 28])

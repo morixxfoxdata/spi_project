@@ -7,8 +7,8 @@ import torch.nn as nn
 import torch.optim as optim
 
 from models.GIDC import GIDC28_for_notdiff
-from utils.exp_utils import image_display, np_to_torch, total_variation_loss_v2
-from utils.undiff_utils import load_mnist_undiff, speckle_pred_inv_diff
+from utils.exp_utils import image_display, np_to_torch, total_variation_loss_v2,  speckle_pred_inv
+from utils.undiff_utils import load_mnist_undiff, speckle_pred_inv_diff, min_max_normalize
 
 seed = 42
 np.random.seed(seed)
@@ -30,8 +30,8 @@ pixel = 28
 # ==========================================================================
 # DATA _ PATH
 # ==========================================================================
-exp_data_dir = "../data/experiment"
-save_dir = "../results/"
+exp_data_dir = "data/experiment"
+save_dir = "results/"
 
 if pixel == 28:
     exp_collected = os.path.join(
@@ -70,15 +70,17 @@ TV_strength = 8e-9
 X_mnist, Y_mnist = load_mnist_undiff(
     target_path=exp_target, collect_path=exp_collected, color="black"
 )
-# S_0 = speckle_pred_inv(
-#     target_path=exp_target,
-#     collect_path=exp_collected,
-#     region_indices=region_indices,
-#     pixel=pixel,
-# )
-S_0 = speckle_pred_inv_diff(
-    target_path=exp_target, collect_path=exp_collected, color="black"
+# ランダムパターンの差分を取る場合はこれを使う
+S_0 = speckle_pred_inv(
+    target_path=exp_target,
+    collect_path=exp_collected,
+    region_indices=region_indices,
+    pixel=pixel,
 )
+# 差分を取らない場合はこっち
+# S_0 = speckle_pred_inv_diff(
+#     target_path=exp_target, collect_path=exp_collected, color="black"
+# )
 print("X_mnist, Y_mnist, S_0 shape:", X_mnist.shape, Y_mnist.shape, S_0.shape)
 
 # CUDA, MPS, CPU の判定
@@ -90,10 +92,10 @@ else:
     device = "cpu"
 print("Using device:", device)
 
-S_0_tensor = np_to_torch(S_0 * 2).float().to(device)
+S_0_tensor = np_to_torch(S_0).float().to(device)
 X_mnist_tensor = np_to_torch(X_mnist).float()
 Y_mnist_tensor = np_to_torch(Y_mnist).float()
-S_0_pinv = np.linalg.pinv(S_0 * 2)
+S_0_pinv = np.linalg.pinv(S_0)
 rec_mnist = np.dot(Y_mnist, S_0_pinv)
 plt.imshow(rec_mnist[0].reshape((28, 28)), cmap="gray")
 plt.colorbar()
@@ -108,11 +110,11 @@ for num in range(10):
     print(f"\n================ Image {num} の学習開始 ================\n")
 
     # 各画像に対する再構成画像と目標値を用意
-    rec = rec_tensor[num].reshape((1, 1, pixel, pixel)).to(device)
+    rec = min_max_normalize(rec_tensor[num].reshape((1, 1, pixel, pixel))).to(device)
     y_ = Y_mnist_tensor[num].to(device)
 
     # モデル、オプティマイザ、スケジューラを再初期化
-    model = GIDC28_for_notdiff(kernel_size=7, name="GIDC_black_S2").to(device)
+    model = GIDC28_for_notdiff(kernel_size=3, name="GIDC_black_minmax_kernel3").to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     # scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.999)
 
