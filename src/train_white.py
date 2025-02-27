@@ -70,7 +70,7 @@ TV_strength = 8e-9
 X_mnist, Y_mnist = load_mnist_undiff(
     target_path=exp_target, collect_path=exp_collected, color="black"
 )
-# ランダムパターンの差分を取る場合はこれを使う
+# ランダムパターンの差分を取る場合はこれを使う(mean)
 S_0 = speckle_pred_inv(
     target_path=exp_target,
     collect_path=exp_collected,
@@ -114,7 +114,7 @@ for num in range(10):
     y_ = Y_mnist_tensor[num].to(device)
 
     # モデル、オプティマイザ、スケジューラを再初期化
-    model = GIDC28_for_notdiff(kernel_size=3, name="GIDC_black_minmax_kernel3").to(device)
+    model = GIDC28_for_notdiff(kernel_size=3, name="GIDC_black_nosmean").to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     # scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.999)
 

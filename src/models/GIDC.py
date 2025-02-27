@@ -252,7 +252,7 @@ class GIDC28_for_notdiff(nn.Module):
     def __init__(self, kernel_size=5, name="GI"):
         """
         kernel_size: 畳み込み層・転置畳み込み層で使用するカーネルサイズ。
-                     "same" パディングの場合、内部で (kernel_size-1)//2 を計算します。
+        "same" パディングの場合、内部で (kernel_size-1)//2 を計算します。
         """
         super(GIDC28_for_notdiff, self).__init__()
         self.kernel_size = kernel_size
@@ -320,7 +320,7 @@ class GIDC28_for_notdiff(nn.Module):
                 padding=self._get_padding(kernel_size, "same"),
             ),
             nn.BatchNorm2d(1),
-            nn.Tanh(),
+            nn.Sigmoid(),
         )
 
     def _get_padding(self, kernel_size, padding):
